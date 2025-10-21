@@ -7,16 +7,18 @@ export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_RORK_API_BASE_URL) {
-    return `${process.env.EXPO_PUBLIC_RORK_API_BASE_URL}/api`;
+    const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+    console.log('[tRPC] Using EXPO_PUBLIC_RORK_API_BASE_URL:', baseUrl);
+    return baseUrl;
   }
 
   if (typeof window !== 'undefined') {
     const origin = window.location.origin;
     console.log('[tRPC] Using window origin:', origin);
-    return `${origin}/api`;
+    return origin;
   }
 
-  const url = 'http://localhost:8081/api';
+  const url = 'http://localhost:8081';
   console.log('[tRPC] Using localhost URL:', url);
   return url;
 };
