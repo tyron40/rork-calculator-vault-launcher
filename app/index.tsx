@@ -122,35 +122,18 @@ export default function CalculatorScreen() {
           await logActivity('app_opened', 'Parent dashboard accessed');
           router.push('/parent');
           return;
-        } else if (pin === childPin) {
-          console.log('[Calculator] Child PIN verified (parent device), opening calculator mode');
-          
-          setCurrentPin(pin);
-          setDecoyMode(true);
-          setLocked(false);
-          
-          const hiddenApps = await getHiddenApps(pin, true);
-          setHiddenApps(hiddenApps);
-          
-          await logActivity('app_opened', 'Vault unlocked (child mode on parent device)');
-          router.push('/vault');
-          return;
         }
       } else {
-        const isMainPin = await verifyPin(pin, false);
-        const isDecoyPin = await verifyPin(pin, true);
-        
-        if (isMainPin || isDecoyPin) {
-          console.log('[Calculator] PIN verified, unlocking vault');
+        if (childPin && pin === childPin) {
+          console.log('[Calculator] Child PIN verified, unlocking vault');
           
           setCurrentPin(pin);
-          setDecoyMode(isDecoyPin);
           setLocked(false);
           
-          const hiddenApps = await getHiddenApps(pin, isDecoyPin);
+          const hiddenApps = await getHiddenApps(pin, false);
           setHiddenApps(hiddenApps);
           
-          await logActivity('app_opened', `Vault unlocked ${isDecoyPin ? '(decoy mode)' : '(main mode)'}`);
+          await logActivity('app_opened', 'Vault unlocked (child device)');
           
           router.push('/vault');
           return;

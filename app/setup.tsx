@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Lock, Shield, QrCode } from 'lucide-react-native';
+import { Lock, Shield } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { initializeVault } from '@/services/storage';
 import { saveConnectionConfig, generateDeviceId, getDeviceName } from '@/services/connection';
-import { trpcClient } from '@/lib/trpc';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserRole } from '@/store/vaultStore';
 
@@ -15,9 +14,6 @@ export default function SetupScreen() {
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [parentPin, setParentPin] = useState<string>('');
   const [confirmParentPin, setConfirmParentPin] = useState<string>('');
-  const [childPin, setChildPin] = useState<string>('');
-  const [confirmChildPin, setConfirmChildPin] = useState<string>('');
-  const [pairingCode, setPairingCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -45,35 +41,9 @@ export default function SetupScreen() {
         Alert.alert('PIN Mismatch', 'Parent PINs do not match');
         return;
       }
-
-      if (childPin.length < 4) {
-        Alert.alert('Invalid PIN', 'Child PIN must be at least 4 digits');
-        return;
-      }
-
-      if (childPin !== confirmChildPin) {
-        Alert.alert('PIN Mismatch', 'Child PINs do not match');
-        return;
-      }
-
-      if (parentPin === childPin) {
-        Alert.alert('Invalid PINs', 'Parent and child PINs must be different');
-        return;
-      }
     } else {
-      if (childPin.length < 4) {
-        Alert.alert('Invalid PIN', 'PIN must be at least 4 digits');
-        return;
-      }
-
-      if (childPin !== confirmChildPin) {
-        Alert.alert('PIN Mismatch', 'PINs do not match');
-        return;
-      }
-
-      if (!pairingCode.trim()) {
-        Alert.alert('Required', 'Please enter the pairing code from parent device (or skip for later)');
-      }
+      router.replace('/child-pairing');
+      return;
     }
 
     try {
@@ -83,68 +53,35 @@ export default function SetupScreen() {
       const deviceId = await generateDeviceId();
       const deviceName = await getDeviceName();
 
-      if (userRole === 'parent') {
-        await initializeVault(parentPin);
-        await AsyncStorage.setItem('parent_pin', parentPin);
-        await AsyncStorage.setItem('child_pin', childPin);
-        
-        await saveConnectionConfig({
-          userRole: 'parent',
-          parentPin,
-          childPin,
-          deviceId,
-          deviceName,
-        });
+      await initializeVault(parentPin);
+      await AsyncStorage.setItem('parent_pin', parentPin);
+      
+      await saveConnectionConfig({
+        userRole: 'parent',
+        parentPin,
+        childPin: null,
+        deviceId,
+        deviceName,
+      });
 
-        console.log('[Setup] Parent vault initialized successfully');
-        
-        setCurrentPin(parentPin);
-        setLocked(false);
-        setStoreUserRole('parent');
-        
-        Alert.alert(
-          'Success',
-          `Parent mode setup complete!\n\nParent PIN: ${parentPin}\nChild PIN: ${childPin}\n\nYou will now be taken to the parent dashboard.`,
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                router.replace('/onboarding');
-              },
+      console.log('[Setup] Parent vault initialized successfully');
+      
+      setCurrentPin(parentPin);
+      setLocked(false);
+      setStoreUserRole('parent');
+      
+      Alert.alert(
+        'Success',
+        `Parent mode setup complete!\n\nYour PIN: ${parentPin}\n\nYou can now generate pairing codes to connect child devices.`,
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              router.replace('/parent');
             },
-          ]
-        );
-      } else {
-        await initializeVault(childPin);
-        
-        const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
-        const pairingResult = await trpcClient.devices.generatePairingCode.mutate({
-          deviceId,
-          childName: consentData.childName || 'Child Device',
-        });
-        
-        const code = pairingResult.code;
-        
-        await saveConnectionConfig({
-          userRole: 'child',
-          parentPin: null,
-          childPin,
-          deviceId,
-          deviceName,
-        });
-
-        console.log('[Setup] Child vault initialized successfully');
-        Alert.alert(
-          'Success',
-          `Child mode setup complete!\n\nYour Pairing Code: ${code}\n\nShare this code with parent to connect devices.\nCode expires in 5 minutes.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/onboarding'),
-            },
-          ]
-        );
-      }
+          },
+        ]
+      );
     } catch (error) {
       console.error('[Setup] Error initializing vault:', error);
       Alert.alert('Error', 'Failed to create vault');
@@ -172,12 +109,12 @@ export default function SetupScreen() {
             <Shield size={64} color={userRole === 'parent' ? '#3b82f6' : '#10b981'} />
           </View>
           <Text style={styles.title}>
-            {userRole === 'parent' ? 'Create Parent & Child PINs' : 'Create Your PIN'}
+            {userRole === 'parent' ? 'Create Parent PIN' : 'Child Setup'}
           </Text>
           <Text style={styles.subtitle}>
             {userRole === 'parent'
-              ? 'Set different PINs for parent monitoring and child access'
-              : 'Set up your secure PIN and get pairing code'}
+              ? 'Set your PIN to access the parent dashboard'
+              : 'Get your pairing code to connect with parent device'}
           </Text>
         </View>
 
@@ -218,86 +155,14 @@ export default function SetupScreen() {
                   maxLength={8}
                 />
               </View>
-
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>👶 Child PIN</Text>
-                <Text style={styles.sectionDescription}>
-                  Regular calculator access (vault hidden)
-                </Text>
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Lock size={20} color="#10b981" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter Child PIN (min 4 digits)"
-                  placeholderTextColor="#6b7280"
-                  value={childPin}
-                  onChangeText={setChildPin}
-                  secureTextEntry
-                  keyboardType="number-pad"
-                  maxLength={8}
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Lock size={20} color="#10b981" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Confirm Child PIN"
-                  placeholderTextColor="#6b7280"
-                  value={confirmChildPin}
-                  onChangeText={setConfirmChildPin}
-                  secureTextEntry
-                  keyboardType="number-pad"
-                  maxLength={8}
-                />
-              </View>
             </>
           ) : (
-            <>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>🔐 Your PIN</Text>
-                <Text style={styles.sectionDescription}>
-                  Access calculator and monitored features
-                </Text>
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Lock size={20} color="#10b981" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter PIN (min 4 digits)"
-                  placeholderTextColor="#6b7280"
-                  value={childPin}
-                  onChangeText={setChildPin}
-                  secureTextEntry
-                  keyboardType="number-pad"
-                  maxLength={8}
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Lock size={20} color="#10b981" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Confirm PIN"
-                  placeholderTextColor="#6b7280"
-                  value={confirmChildPin}
-                  onChangeText={setConfirmChildPin}
-                  secureTextEntry
-                  keyboardType="number-pad"
-                  maxLength={8}
-                />
-              </View>
-
-              <View style={styles.pairingBox}>
-                <QrCode size={24} color="#8b5cf6" />
-                <Text style={styles.pairingText}>
-                  You'll receive a pairing code after setup to share with parent
-                </Text>
-              </View>
-            </>
+            <View style={styles.childInfo}>
+              <Text style={styles.childInfoTitle}>🔗 Pairing Required</Text>
+              <Text style={styles.childInfoText}>
+                You'll receive a pairing code that your parent can use to connect and set up your calculator PIN.
+              </Text>
+            </View>
           )}
 
           <TouchableOpacity
@@ -306,15 +171,15 @@ export default function SetupScreen() {
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'Creating...' : 'Create Vault'}
+              {isLoading ? 'Setting up...' : userRole === 'parent' ? 'Create Account' : 'Continue'}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               💡 {userRole === 'parent' 
-                ? 'Remember both PINs! Parent PIN opens monitoring, child PIN opens calculator only.'
-                : 'Remember your PIN! To unlock, type it on the calculator and press ='}
+                ? 'Remember your PIN! You\'ll use it to access the parent dashboard.'
+                : 'The pairing code will allow your parent to set up monitoring on this device.'}
             </Text>
           </View>
         </View>
@@ -428,19 +293,22 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     lineHeight: 20,
   },
-  pairingBox: {
-    flexDirection: 'row',
+  childInfo: {
     backgroundColor: '#2d3142',
     borderRadius: 12,
-    padding: 16,
-    gap: 12,
+    padding: 20,
     alignItems: 'center',
-    marginTop: 8,
   },
-  pairingText: {
-    flex: 1,
+  childInfoTitle: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+    marginBottom: 12,
+  },
+  childInfoText: {
     fontSize: 14,
     color: '#9ca3af',
     lineHeight: 20,
+    textAlign: 'center',
   },
 });

@@ -13,13 +13,21 @@ const pairedDevices = new Map<string, {
   childDeviceId: string;
   childName: string;
   deviceName: string;
+  childPin: string;
   pairedAt: number;
+}>();
+
+const childPairingStatus = new Map<string, {
+  paired: boolean;
+  childPin: string;
+  parentDeviceId: string;
 }>();
 
 export const pairDeviceProcedure = publicProcedure
   .input(z.object({
     pairingCode: z.string(),
     parentDeviceId: z.string(),
+    childPin: z.string(),
   }))
   .mutation(async ({ input }) => {
     console.log('[Backend] Pairing device with code:', input.pairingCode);
@@ -42,7 +50,14 @@ export const pairDeviceProcedure = publicProcedure
       childDeviceId: pairingData.deviceId,
       childName: pairingData.childName,
       deviceName: 'Child Device',
+      childPin: input.childPin,
       pairedAt: Date.now(),
+    });
+    
+    childPairingStatus.set(pairingData.deviceId, {
+      paired: true,
+      childPin: input.childPin,
+      parentDeviceId: input.parentDeviceId,
     });
     
     pairingCodes.delete(input.pairingCode);
@@ -97,4 +112,22 @@ export const getParentDevicesProcedure = publicProcedure
     });
     
     return devices;
+  });
+
+export const checkPairingStatusProcedure = publicProcedure
+  .input(z.object({
+    deviceId: z.string(),
+  }))
+  .query(async ({ input }) => {
+    const status = childPairingStatus.get(input.deviceId);
+    
+    if (status) {
+      return status;
+    }
+    
+    return {
+      paired: false,
+      childPin: '',
+      parentDeviceId: '',
+    };
   });
