@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { InstalledApp } from '@/services/apps';
 
+export interface MonitoringSettings {
+  audioMonitoringEnabled: boolean;
+  screenMonitoringEnabled: boolean;
+  activityLoggingEnabled: boolean;
+  lastMonitoringCheck: number;
+}
+
 export interface VaultState {
   isLocked: boolean;
   isDecoyMode: boolean;
@@ -8,6 +15,7 @@ export interface VaultState {
   installedApps: InstalledApp[];
   hiddenApps: string[];
   lastActivityTime: number;
+  monitoringSettings: MonitoringSettings;
   
   setLocked: (locked: boolean) => void;
   setDecoyMode: (isDecoy: boolean) => void;
@@ -17,6 +25,7 @@ export interface VaultState {
   updateLastActivity: () => void;
   addHiddenApp: (packageName: string) => void;
   removeHiddenApp: (packageName: string) => void;
+  updateMonitoringSettings: (settings: Partial<MonitoringSettings>) => void;
   reset: () => void;
 }
 
@@ -27,6 +36,12 @@ const initialState = {
   installedApps: [],
   hiddenApps: [],
   lastActivityTime: Date.now(),
+  monitoringSettings: {
+    audioMonitoringEnabled: false,
+    screenMonitoringEnabled: false,
+    activityLoggingEnabled: false,
+    lastMonitoringCheck: Date.now(),
+  },
 };
 
 export const useVaultStore = create<VaultState>((set) => ({
@@ -72,6 +87,17 @@ export const useVaultStore = create<VaultState>((set) => ({
     console.log('[VaultStore] Removing hidden app:', packageName);
     set((state) => ({
       hiddenApps: state.hiddenApps.filter((pkg) => pkg !== packageName),
+    }));
+  },
+  
+  updateMonitoringSettings: (settings: Partial<MonitoringSettings>) => {
+    console.log('[VaultStore] Updating monitoring settings:', settings);
+    set((state) => ({
+      monitoringSettings: {
+        ...state.monitoringSettings,
+        ...settings,
+        lastMonitoringCheck: Date.now(),
+      },
     }));
   },
   

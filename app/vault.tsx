@@ -1,12 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Lock, Grid, List, Settings as SettingsIcon } from 'lucide-react-native';
+import { Lock, Grid, List, Settings as SettingsIcon, Mic, Activity, BarChart3 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import AppGrid from '@/components/AppGrid';
 import SearchBar from '@/components/SearchBar';
 import { launchApp, InstalledApp } from '@/services/apps';
 import { saveHiddenApps } from '@/services/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { 
+  startAudioMonitoring, 
+  stopAudioMonitoring, 
+  isAudioMonitoringActive,
+  logActivity 
+} from '@/services/monitoring';
 
 export default function VaultScreen() {
   const router = useRouter();
@@ -22,6 +29,8 @@ export default function VaultScreen() {
     setLocked,
     addHiddenApp,
     removeHiddenApp,
+    monitoringSettings,
+    updateMonitoringSettings,
   } = useVaultStore();
 
   useEffect(() => {
@@ -194,10 +203,106 @@ export default function VaultScreen() {
 
       {activeTab === 'settings' && (
         <View style={styles.settingsContent}>
-          <Text style={styles.settingsTitle}>Settings</Text>
-          <Text style={styles.settingsText}>
-            Settings screen coming soon...
-          </Text>
+          <Text style={styles.settingsTitle}>Monitoring Settings</Text>
+          
+          <View style={styles.settingCard}>
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <View style={styles.settingHeader}>
+                  <Mic size={20} color="#8b5cf6" />
+                  <Text style={styles.settingLabel}>Audio Monitoring</Text>
+                </View>
+                <Text style={styles.settingDescription}>
+                  {Platform.OS === 'web' 
+                    ? 'Audio monitoring is not available on web'
+                    : 'Record audio from device microphone'}
+                </Text>
+              </View>
+              <Switch
+                value={monitoringSettings.audioMonitoringEnabled}
+                onValueChange={async (value) => {
+                  if (Platform.OS === 'web') {
+                    Alert.alert('Not Available', 'Audio monitoring is not supported on web');
+                    return;
+                  }
+                  
+                  try {
+                    if (value) {
+                      const started = await startAudioMonitoring();
+                      if (started) {
+                        updateMonitoringSettings({ audioMonitoringEnabled: true });
+                        await AsyncStorage.setItem('audio_monitoring_enabled', 'true');
+                        await logActivity('app_opened', 'Audio monitoring started');
+                        Alert.alert('Audio Monitoring', 'Audio monitoring has been enabled');
+                      } else {
+                        Alert.alert('Permission Denied', 'Audio permission is required for monitoring');
+                      }
+                    } else {
+                      await stopAudioMonitoring();
+                      updateMonitoringSettings({ audioMonitoringEnabled: false });
+                      await AsyncStorage.setItem('audio_monitoring_enabled', 'false');
+                      await logActivity('app_closed', 'Audio monitoring stopped');
+                      Alert.alert('Audio Monitoring', 'Audio monitoring has been disabled');
+                    }
+                  } catch (error) {
+                    console.error('[Settings] Error toggling audio monitoring:', error);
+                    Alert.alert('Error', 'Failed to toggle audio monitoring');
+                  }
+                }}
+                trackColor={{ false: '#4b5563', true: '#8b5cf6' }}
+                thumbColor={monitoringSettings.audioMonitoringEnabled ? '#ffffff' : '#9ca3af'}
+                disabled={Platform.OS === 'web'}
+              />
+            </View>
+          </View>
+
+          <View style={styles.settingCard}>
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <View style={styles.settingHeader}>
+                  <Activity size={20} color="#10b981" />
+                  <Text style={styles.settingLabel}>Activity Logging</Text>
+                </View>
+                <Text style={styles.settingDescription}>
+                  Log app usage and device activity
+                </Text>
+              </View>
+              <Switch
+                value={monitoringSettings.activityLoggingEnabled}
+                onValueChange={async (value) => {
+                  try {
+                    updateMonitoringSettings({ activityLoggingEnabled: value });
+                    await AsyncStorage.setItem('activity_logging_enabled', value ? 'true' : 'false');
+                    await logActivity('app_opened', `Activity logging ${value ? 'enabled' : 'disabled'}`);
+                    Alert.alert(
+                      'Activity Logging', 
+                      `Activity logging has been ${value ? 'enabled' : 'disabled'}`
+                    );
+                  } catch (error) {
+                    console.error('[Settings] Error toggling activity logging:', error);
+                    Alert.alert('Error', 'Failed to toggle activity logging');
+                  }
+                }}
+                trackColor={{ false: '#4b5563', true: '#10b981' }}
+                thumbColor={monitoringSettings.activityLoggingEnabled ? '#ffffff' : '#9ca3af'}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.dashboardButton}
+            onPress={() => router.push('/monitoring')}
+          >
+            <BarChart3 size={20} color="#ffffff" />
+            <Text style={styles.dashboardButtonText}>View Monitoring Dashboard</Text>
+          </TouchableOpacity>
+
+          <View style={styles.infoCard}>
+            <Text style={styles.infoTitle}>ℹ️ About Monitoring</Text>
+            <Text style={styles.infoText}>
+              This app provides legal parental monitoring with full consent. All monitoring features comply with local laws and privacy regulations.
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -294,5 +399,69 @@ const styles = StyleSheet.create({
   settingsText: {
     fontSize: 16,
     color: '#9ca3af',
+  },
+  settingCard: {
+    backgroundColor: '#2d3142',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  settingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: '#9ca3af',
+    lineHeight: 20,
+  },
+  dashboardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  dashboardButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+  },
+  infoCard: {
+    backgroundColor: '#1e3a5f',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#93c5fd',
+    lineHeight: 20,
   },
 });

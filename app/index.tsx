@@ -5,6 +5,7 @@ import CalculatorPad from '@/components/CalculatorPad';
 import { useVaultStore } from '@/store/vaultStore';
 import { verifyPin, isVaultInitialized, getHiddenApps } from '@/services/storage';
 import { getInstalledApps } from '@/services/apps';
+import { hasParentalConsent, logActivity } from '@/services/monitoring';
 
 export default function CalculatorScreen() {
   const router = useRouter();
@@ -26,6 +27,15 @@ export default function CalculatorScreen() {
   const checkInitialization = async () => {
     try {
       console.log('[Calculator] Checking vault initialization');
+      
+      const hasConsent = await hasParentalConsent();
+      if (!hasConsent) {
+        console.log('[Calculator] No parental consent found, redirecting to consent screen');
+        router.replace('/consent');
+        setIsLoading(false);
+        return;
+      }
+      
       const initialized = await isVaultInitialized();
       setIsInitialized(initialized);
       
@@ -35,6 +45,7 @@ export default function CalculatorScreen() {
       } else {
         const apps = await getInstalledApps();
         setInstalledApps(apps);
+        await logActivity('app_opened', 'Calculator app opened');
       }
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
@@ -60,9 +71,12 @@ export default function CalculatorScreen() {
         const hiddenApps = await getHiddenApps(pin, isDecoyPin);
         setHiddenApps(hiddenApps);
         
+        await logActivity('app_opened', `Vault unlocked ${isDecoyPin ? '(decoy mode)' : '(main mode)'}`);
+        
         router.push('/vault');
       } else {
         console.log('[Calculator] Invalid PIN');
+        await logActivity('app_opened', 'Failed PIN attempt');
       }
     } catch (error) {
       console.error('[Calculator] Error verifying PIN:', error);
