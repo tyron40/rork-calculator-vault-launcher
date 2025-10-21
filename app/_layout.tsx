@@ -4,11 +4,24 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet } from "react-native";
-import { trpc, trpcClient } from "@/lib/trpc";
+import { trpc, trpcReactClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 5000,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 function RootLayoutNav() {
   return (
@@ -32,7 +45,7 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <trpc.Provider client={trpcReactClient} queryClient={queryClient}>
         <GestureHandlerRootView style={styles.container}>
           <RootLayoutNav />
         </GestureHandlerRootView>

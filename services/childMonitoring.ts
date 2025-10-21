@@ -106,13 +106,22 @@ async function updateDeviceStatus(deviceId: string): Promise<void> {
       }
     }
 
-    await trpcClient.devices.updateStatus.mutate({
-      deviceId,
-      batteryLevel,
-      location,
-    });
+    try {
+      await trpcClient.devices.updateStatus.mutate({
+        deviceId,
+        batteryLevel,
+        location,
+      });
+      console.log('[ChildMonitoring] Device status updated successfully');
+    } catch (error: any) {
+      if (error?.message?.includes('JSON Parse')) {
+        console.error('[ChildMonitoring] Backend connection error - server may not be responding correctly');
+      } else {
+        console.error('[ChildMonitoring] Error updating device status:', error?.message || error);
+      }
+    }
   } catch (error) {
-    console.error('[ChildMonitoring] Error updating device status:', error);
+    console.error('[ChildMonitoring] Error in updateDeviceStatus:', error);
   }
 }
 
