@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Switch, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { 
   Lock, 
@@ -67,17 +68,22 @@ export default function ParentDashboardScreen() {
     router.replace('/');
   };
 
-  const handleToggleDisguise = () => {
+  const handleToggleDisguise = async () => {
     Alert.alert(
       'Switch to Calculator',
-      'This will show the calculator disguise. You can return by entering your parent PIN again.',
+      'This will show the calculator disguise. You can return by entering your parent PIN on the calculator and pressing =.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Switch',
-          onPress: () => {
-            console.log('[ParentDashboard] Switching to calculator disguise');
-            router.replace('/');
+          onPress: async () => {
+            try {
+              console.log('[ParentDashboard] Switching to calculator disguise');
+              await AsyncStorage.setItem('calculator_disguise_mode', 'true');
+              router.replace('/disguise');
+            } catch (error) {
+              console.error('[ParentDashboard] Error entering disguise mode:', error);
+            }
           },
         },
       ]

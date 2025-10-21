@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ShieldCheck, AlertCircle, Users, User } from 'lucide-react-native';
+import { ShieldCheck, AlertCircle, Users, User, Calculator } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserRole } from '@/store/vaultStore';
 
@@ -125,6 +125,21 @@ export default function ConsentScreen() {
               <Text style={styles.roleDescription}>
                 This device will be monitored by a parent/guardian for safety with full consent.
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.disguiseButton}
+              onPress={async () => {
+                try {
+                  await AsyncStorage.setItem('calculator_disguise_mode', 'true');
+                  router.replace('/disguise');
+                } catch (error) {
+                  console.error('[Consent] Error entering disguise mode:', error);
+                }
+              }}
+            >
+              <Calculator size={20} color="#8b5cf6" />
+              <Text style={styles.disguiseButtonText}>Switch to Calculator Disguise</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -369,6 +384,24 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
+    color: '#8b5cf6',
+  },
+  disguiseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2d3142',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#8b5cf6',
+  },
+  disguiseButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
     color: '#8b5cf6',
   },
 });

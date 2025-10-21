@@ -33,6 +33,14 @@ export default function CalculatorScreen() {
     try {
       console.log('[Calculator] Checking vault initialization');
       
+      const disguiseMode = await AsyncStorage.getItem('calculator_disguise_mode');
+      if (disguiseMode === 'true') {
+        console.log('[Calculator] Disguise mode active, redirecting to disguise calculator');
+        router.replace('/disguise');
+        setIsLoading(false);
+        return;
+      }
+      
       const hasConsent = await hasParentalConsent();
       if (!hasConsent) {
         console.log('[Calculator] No parental consent found, redirecting to consent screen');
