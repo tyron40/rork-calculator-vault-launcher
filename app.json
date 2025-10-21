@@ -35,7 +35,8 @@
       "package": "app.rork.calculator-vault-launcher",
       "permissions": [
         "android.permission.VIBRATE",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
       ]
     },
     "web": {

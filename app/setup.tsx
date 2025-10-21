@@ -1,43 +1,136 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Lock, Shield } from 'lucide-react-native';
+import { Lock, Shield, QrCode } from 'lucide-react-native';
 import { initializeVault } from '@/services/storage';
+import { saveConnectionConfig, generateDeviceId, getDeviceName, generatePairingCode, savePairingCode } from '@/services/connection';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserRole } from '@/store/vaultStore';
 
 export default function SetupScreen() {
   const router = useRouter();
-  const [pin, setPin] = useState<string>('');
-  const [confirmPin, setConfirmPin] = useState<string>('');
+  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [parentPin, setParentPin] = useState<string>('');
+  const [confirmParentPin, setConfirmParentPin] = useState<string>('');
+  const [childPin, setChildPin] = useState<string>('');
+  const [confirmChildPin, setConfirmChildPin] = useState<string>('');
+  const [pairingCode, setPairingCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleSetup = async () => {
-    if (pin.length < 4) {
-      Alert.alert('Invalid PIN', 'PIN must be at least 4 digits');
-      return;
-    }
+  useEffect(() => {
+    loadUserRole();
+  }, []);
 
-    if (pin !== confirmPin) {
-      Alert.alert('PIN Mismatch', 'PINs do not match');
-      return;
+  const loadUserRole = async () => {
+    try {
+      const role = await AsyncStorage.getItem('user_role') as UserRole;
+      setUserRole(role);
+      console.log('[Setup] User role:', role);
+    } catch (error) {
+      console.error('[Setup] Error loading user role:', error);
+    }
+  };
+
+  const handleSetup = async () => {
+    if (userRole === 'parent') {
+      if (parentPin.length < 4) {
+        Alert.alert('Invalid PIN', 'Parent PIN must be at least 4 digits');
+        return;
+      }
+
+      if (parentPin !== confirmParentPin) {
+        Alert.alert('PIN Mismatch', 'Parent PINs do not match');
+        return;
+      }
+
+      if (childPin.length < 4) {
+        Alert.alert('Invalid PIN', 'Child PIN must be at least 4 digits');
+        return;
+      }
+
+      if (childPin !== confirmChildPin) {
+        Alert.alert('PIN Mismatch', 'Child PINs do not match');
+        return;
+      }
+
+      if (parentPin === childPin) {
+        Alert.alert('Invalid PINs', 'Parent and child PINs must be different');
+        return;
+      }
+    } else {
+      if (childPin.length < 4) {
+        Alert.alert('Invalid PIN', 'PIN must be at least 4 digits');
+        return;
+      }
+
+      if (childPin !== confirmChildPin) {
+        Alert.alert('PIN Mismatch', 'PINs do not match');
+        return;
+      }
+
+      if (!pairingCode.trim()) {
+        Alert.alert('Required', 'Please enter the pairing code from parent device (or skip for later)');
+      }
     }
 
     try {
       setIsLoading(true);
-      console.log('[Setup] Initializing vault');
+      console.log('[Setup] Initializing vault for role:', userRole);
       
-      await initializeVault(pin);
-      
-      console.log('[Setup] Vault initialized successfully');
-      Alert.alert(
-        'Success',
-        'Vault created successfully! Enter your PIN on the calculator and press = to unlock.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/onboarding'),
-          },
-        ]
-      );
+      const deviceId = await generateDeviceId();
+      const deviceName = await getDeviceName();
+
+      if (userRole === 'parent') {
+        await initializeVault(parentPin);
+        await AsyncStorage.setItem('parent_pin', parentPin);
+        await AsyncStorage.setItem('child_pin', childPin);
+        
+        await saveConnectionConfig({
+          userRole: 'parent',
+          parentPin,
+          childPin,
+          deviceId,
+          deviceName,
+        });
+
+        console.log('[Setup] Parent vault initialized successfully');
+        Alert.alert(
+          'Success',
+          `Parent mode setup complete!\n\nParent PIN: ${parentPin}\nChild PIN: ${childPin}\n\nUse parent PIN to access monitoring dashboard.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/onboarding'),
+            },
+          ]
+        );
+      } else {
+        await initializeVault(childPin);
+        
+        const code = await generatePairingCode();
+        const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
+        await savePairingCode(code, deviceId, consentData.childName || 'Child Device');
+        
+        await saveConnectionConfig({
+          userRole: 'child',
+          parentPin: null,
+          childPin,
+          deviceId,
+          deviceName,
+        });
+
+        console.log('[Setup] Child vault initialized successfully');
+        Alert.alert(
+          'Success',
+          `Child mode setup complete!\n\nYour Pairing Code: ${code}\n\nShare this code with parent to connect devices.\nCode expires in 5 minutes.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/onboarding'),
+            },
+          ]
+        );
+      }
     } catch (error) {
       console.error('[Setup] Error initializing vault:', error);
       Alert.alert('Error', 'Failed to create vault');
@@ -45,6 +138,14 @@ export default function SetupScreen() {
       setIsLoading(false);
     }
   };
+
+  if (!userRole) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -54,42 +155,136 @@ export default function SetupScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <Shield size={64} color="#8b5cf6" />
+            <Shield size={64} color={userRole === 'parent' ? '#3b82f6' : '#10b981'} />
           </View>
-          <Text style={styles.title}>Create Your Vault</Text>
+          <Text style={styles.title}>
+            {userRole === 'parent' ? 'Create Parent & Child PINs' : 'Create Your PIN'}
+          </Text>
           <Text style={styles.subtitle}>
-            Set up a secure PIN to protect your hidden apps
+            {userRole === 'parent'
+              ? 'Set different PINs for parent monitoring and child access'
+              : 'Set up your secure PIN and get pairing code'}
           </Text>
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Lock size={20} color="#9ca3af" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter PIN (min 4 digits)"
-              placeholderTextColor="#6b7280"
-              value={pin}
-              onChangeText={setPin}
-              secureTextEntry
-              keyboardType="number-pad"
-              maxLength={8}
-            />
-          </View>
+          {userRole === 'parent' ? (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>👨‍👩‍👧 Parent PIN</Text>
+                <Text style={styles.sectionDescription}>
+                  Access monitoring dashboard and settings
+                </Text>
+              </View>
 
-          <View style={styles.inputContainer}>
-            <Lock size={20} color="#9ca3af" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm PIN"
-              placeholderTextColor="#6b7280"
-              value={confirmPin}
-              onChangeText={setConfirmPin}
-              secureTextEntry
-              keyboardType="number-pad"
-              maxLength={8}
-            />
-          </View>
+              <View style={styles.inputContainer}>
+                <Lock size={20} color="#3b82f6" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter Parent PIN (min 4 digits)"
+                  placeholderTextColor="#6b7280"
+                  value={parentPin}
+                  onChangeText={setParentPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={8}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Lock size={20} color="#3b82f6" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm Parent PIN"
+                  placeholderTextColor="#6b7280"
+                  value={confirmParentPin}
+                  onChangeText={setConfirmParentPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={8}
+                />
+              </View>
+
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>👶 Child PIN</Text>
+                <Text style={styles.sectionDescription}>
+                  Regular calculator access (vault hidden)
+                </Text>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Lock size={20} color="#10b981" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter Child PIN (min 4 digits)"
+                  placeholderTextColor="#6b7280"
+                  value={childPin}
+                  onChangeText={setChildPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={8}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Lock size={20} color="#10b981" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm Child PIN"
+                  placeholderTextColor="#6b7280"
+                  value={confirmChildPin}
+                  onChangeText={setConfirmChildPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={8}
+                />
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>🔐 Your PIN</Text>
+                <Text style={styles.sectionDescription}>
+                  Access calculator and monitored features
+                </Text>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Lock size={20} color="#10b981" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter PIN (min 4 digits)"
+                  placeholderTextColor="#6b7280"
+                  value={childPin}
+                  onChangeText={setChildPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={8}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Lock size={20} color="#10b981" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm PIN"
+                  placeholderTextColor="#6b7280"
+                  value={confirmChildPin}
+                  onChangeText={setConfirmChildPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={8}
+                />
+              </View>
+
+              <View style={styles.pairingBox}>
+                <QrCode size={24} color="#8b5cf6" />
+                <Text style={styles.pairingText}>
+                  You'll receive a pairing code after setup to share with parent
+                </Text>
+              </View>
+            </>
+          )}
 
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -103,7 +298,9 @@ export default function SetupScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              💡 Remember your PIN! To unlock, type it on the calculator and press =
+              💡 {userRole === 'parent' 
+                ? 'Remember both PINs! Parent PIN opens monitoring, child PIN opens calculator only.'
+                : 'Remember your PIN! To unlock, type it on the calculator and press ='}
             </Text>
           </View>
         </View>
@@ -119,12 +316,22 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#1a1d29',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#9ca3af',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
   },
   iconContainer: {
     width: 120,
@@ -136,18 +343,34 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700' as const,
     color: '#ffffff',
     marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#9ca3af',
     textAlign: 'center',
   },
+  subtitle: {
+    fontSize: 15,
+    color: '#9ca3af',
+    textAlign: 'center',
+    paddingHorizontal: 16,
+  },
   form: {
-    gap: 16,
+    gap: 12,
+  },
+  sectionHeader: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#9ca3af',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -170,7 +393,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -187,6 +410,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   infoText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    lineHeight: 20,
+  },
+  pairingBox: {
+    flexDirection: 'row',
+    backgroundColor: '#2d3142',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  pairingText: {
+    flex: 1,
     fontSize: 14,
     color: '#9ca3af',
     lineHeight: 20,

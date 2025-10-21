@@ -6,6 +6,10 @@ import { useVaultStore } from '@/store/vaultStore';
 import { verifyPin, isVaultInitialized, getHiddenApps } from '@/services/storage';
 import { getInstalledApps } from '@/services/apps';
 import { hasParentalConsent, logActivity } from '@/services/monitoring';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getConnectionConfig, generateDeviceId } from '@/services/connection';
+import { startChildMonitoring } from '@/services/childMonitoring';
+import { UserRole } from '@/store/vaultStore';
 
 export default function CalculatorScreen() {
   const router = useRouter();
@@ -17,7 +21,8 @@ export default function CalculatorScreen() {
     setCurrentPin, 
     setInstalledApps, 
     setHiddenApps,
-    setDecoyMode 
+    setDecoyMode,
+    setUserRole,
   } = useVaultStore();
 
   useEffect(() => {
@@ -36,6 +41,13 @@ export default function CalculatorScreen() {
         return;
       }
       
+      const roleStr = await AsyncStorage.getItem('user_role');
+      const userRole = roleStr as UserRole;
+      if (userRole) {
+        setUserRole(userRole);
+        console.log('[Calculator] User role loaded:', userRole);
+      }
+      
       const initialized = await isVaultInitialized();
       setIsInitialized(initialized);
       
@@ -46,6 +58,14 @@ export default function CalculatorScreen() {
         const apps = await getInstalledApps();
         setInstalledApps(apps);
         await logActivity('app_opened', 'Calculator app opened');
+        
+        if (userRole === 'child') {
+          const config = await getConnectionConfig();
+          if (config && config.deviceId) {
+            await startChildMonitoring(config.deviceId);
+            console.log('[Calculator] Child monitoring started');
+          }
+        }
       }
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
@@ -58,26 +78,59 @@ export default function CalculatorScreen() {
     try {
       console.log('[Calculator] Verifying PIN');
       
-      const isMainPin = await verifyPin(pin, false);
-      const isDecoyPin = await verifyPin(pin, true);
+      const roleStr = await AsyncStorage.getItem('user_role');
+      const userRole = roleStr as UserRole;
       
-      if (isMainPin || isDecoyPin) {
-        console.log('[Calculator] PIN verified, unlocking vault');
-        
-        setCurrentPin(pin);
-        setDecoyMode(isDecoyPin);
-        setLocked(false);
-        
-        const hiddenApps = await getHiddenApps(pin, isDecoyPin);
-        setHiddenApps(hiddenApps);
-        
-        await logActivity('app_opened', `Vault unlocked ${isDecoyPin ? '(decoy mode)' : '(main mode)'}`);
-        
-        router.push('/vault');
+      const parentPin = await AsyncStorage.getItem('parent_pin');
+      const childPin = await AsyncStorage.getItem('child_pin');
+      
+      if (userRole === 'parent') {
+        if (pin === parentPin) {
+          console.log('[Calculator] Parent PIN verified, opening parent dashboard');
+          
+          setCurrentPin(pin);
+          setLocked(false);
+          
+          await logActivity('app_opened', 'Parent dashboard accessed');
+          router.push('/parent');
+          return;
+        } else if (pin === childPin) {
+          console.log('[Calculator] Child PIN verified (parent device), opening calculator mode');
+          
+          setCurrentPin(pin);
+          setDecoyMode(true);
+          setLocked(false);
+          
+          const hiddenApps = await getHiddenApps(pin, true);
+          setHiddenApps(hiddenApps);
+          
+          await logActivity('app_opened', 'Vault unlocked (child mode on parent device)');
+          router.push('/vault');
+          return;
+        }
       } else {
-        console.log('[Calculator] Invalid PIN');
-        await logActivity('app_opened', 'Failed PIN attempt');
+        const isMainPin = await verifyPin(pin, false);
+        const isDecoyPin = await verifyPin(pin, true);
+        
+        if (isMainPin || isDecoyPin) {
+          console.log('[Calculator] PIN verified, unlocking vault');
+          
+          setCurrentPin(pin);
+          setDecoyMode(isDecoyPin);
+          setLocked(false);
+          
+          const hiddenApps = await getHiddenApps(pin, isDecoyPin);
+          setHiddenApps(hiddenApps);
+          
+          await logActivity('app_opened', `Vault unlocked ${isDecoyPin ? '(decoy mode)' : '(main mode)'}`);
+          
+          router.push('/vault');
+          return;
+        }
       }
+      
+      console.log('[Calculator] Invalid PIN');
+      await logActivity('app_opened', 'Failed PIN attempt');
     } catch (error) {
       console.error('[Calculator] Error verifying PIN:', error);
       Alert.alert('Error', 'Failed to verify PIN');
