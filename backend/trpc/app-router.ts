@@ -3,8 +3,7 @@ import hiRoute from "./routes/example/hi/route";
 import { 
   pairDeviceProcedure, 
   generatePairingCodeProcedure,
-  getParentDevicesProcedure,
-  checkPairingStatusProcedure
+  getParentDevicesProcedure 
 } from "./routes/devices/pair/route";
 import { 
   sendCommandProcedure, 
@@ -26,7 +25,6 @@ export const appRouter = createTRPCRouter({
     pair: pairDeviceProcedure,
     generatePairingCode: generatePairingCodeProcedure,
     getParentDevices: getParentDevicesProcedure,
-    checkPairingStatus: checkPairingStatusProcedure,
     sendCommand: sendCommandProcedure,
     getCommands: getCommandsProcedure,
     updateCommandStatus: updateCommandStatusProcedure,

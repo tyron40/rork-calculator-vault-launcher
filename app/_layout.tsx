@@ -21,7 +21,6 @@ function RootLayoutNav() {
       <Stack.Screen name="parent" options={{ headerShown: false }} />
       <Stack.Screen name="monitoring" options={{ headerShown: false }} />
       <Stack.Screen name="disguise" options={{ headerShown: false }} />
-      <Stack.Screen name="child-pairing" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -32,13 +31,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={styles.container}>
           <RootLayoutNav />
         </GestureHandlerRootView>
-      </trpc.Provider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </trpc.Provider>
   );
 }
 

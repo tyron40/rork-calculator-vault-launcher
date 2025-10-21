@@ -72,24 +72,18 @@ export async function stopChildMonitoring(): Promise<void> {
 
 async function checkForCommands(deviceId: string): Promise<void> {
   try {
-    console.log('[ChildMonitoring] Checking for commands...');
     const commands = await trpcClient.devices.getCommands.query({ deviceId });
-    console.log('[ChildMonitoring] Found', commands.length, 'commands');
 
     for (const command of commands) {
       await executeCommand(deviceId, command);
     }
   } catch (error) {
     console.error('[ChildMonitoring] Error checking commands:', error);
-    if (error instanceof Error) {
-      console.error('[ChildMonitoring] Error details:', error.message);
-    }
   }
 }
 
 async function updateDeviceStatus(deviceId: string): Promise<void> {
   try {
-    console.log('[ChildMonitoring] Updating device status...');
     const batteryLevel = Platform.OS !== 'web' ? Math.random() * 100 : undefined;
     
     let location: { latitude: number; longitude: number; accuracy: number } | undefined;
@@ -112,17 +106,13 @@ async function updateDeviceStatus(deviceId: string): Promise<void> {
       }
     }
 
-    const result = await trpcClient.devices.updateStatus.mutate({
+    await trpcClient.devices.updateStatus.mutate({
       deviceId,
       batteryLevel,
       location,
     });
-    console.log('[ChildMonitoring] Device status updated successfully:', result);
   } catch (error) {
     console.error('[ChildMonitoring] Error updating device status:', error);
-    if (error instanceof Error) {
-      console.error('[ChildMonitoring] Error details:', error.message);
-    }
   }
 }
 

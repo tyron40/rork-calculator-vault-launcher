@@ -26,7 +26,6 @@ export default function ParentDashboardScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'devices' | 'connect' | 'settings'>('devices');
   const [pairingCode, setPairingCode] = useState<string>('');
-  const [childPin, setChildPin] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [parentDeviceId, setParentDeviceId] = useState<string>('');
@@ -182,12 +181,11 @@ export default function ParentDashboardScreen() {
       
       addConnectedDevice(newDevice);
       setPairingCode('');
-      setChildPin('');
       setActiveTab('devices');
       
       Alert.alert(
         'Device Paired',
-        `Successfully connected to ${data.childName}'s device!\n\nChild PIN: ${childPin}\n\nThe child can now use this PIN on the calculator to access the app.`,
+        `Successfully connected to ${data.childName}'s device!`,
         [{ text: 'OK' }]
       );
     },
@@ -202,11 +200,6 @@ export default function ParentDashboardScreen() {
       return;
     }
 
-    if (!childPin.trim() || childPin.length < 4) {
-      Alert.alert('Required', 'Please enter a child PIN (min 4 digits)');
-      return;
-    }
-
     try {
       setIsLoading(true);
       console.log('[ParentDashboard] Pairing with code:', pairingCode);
@@ -214,10 +207,7 @@ export default function ParentDashboardScreen() {
       await pairDeviceMutation.mutateAsync({
         pairingCode: pairingCode.trim(),
         parentDeviceId,
-        childPin: childPin.trim(),
       });
-
-      await AsyncStorage.setItem(`child_pin_${pairingCode}`, childPin.trim());
     } catch (error) {
       console.error('[ParentDashboard] Error pairing device:', error);
     } finally {
@@ -514,7 +504,7 @@ export default function ParentDashboardScreen() {
                 <Text style={styles.sectionTitle}>Pair Child Device</Text>
               </View>
               <Text style={styles.sectionDescription}>
-                Enter the 6-character pairing code displayed on the child device and create a PIN for them
+                Enter the 6-character pairing code displayed on the child device
               </Text>
 
               <View style={styles.codeInputContainer}>
@@ -526,20 +516,6 @@ export default function ParentDashboardScreen() {
                   onChangeText={(text) => setPairingCode(text.toUpperCase())}
                   autoCapitalize="characters"
                   maxLength={6}
-                />
-              </View>
-
-              <View style={styles.pinInputContainer}>
-                <Lock size={20} color="#10b981" />
-                <TextInput
-                  style={styles.pinInput}
-                  placeholder="Create Child PIN (min 4 digits)"
-                  placeholderTextColor="#6b7280"
-                  value={childPin}
-                  onChangeText={setChildPin}
-                  secureTextEntry
-                  keyboardType="number-pad"
-                  maxLength={8}
                 />
               </View>
 
@@ -560,9 +536,8 @@ export default function ParentDashboardScreen() {
                 1. Open the app on child device{'\n'}
                 2. Complete setup and grant consent{'\n'}
                 3. Child will see a pairing code{'\n'}
-                4. Enter the code here and create a child PIN{'\n'}
-                5. Child can use the PIN on calculator to access the app{'\n'}
-                6. Start monitoring with remote controls
+                4. Enter the code here to connect{'\n'}
+                5. Start monitoring with remote controls
               </Text>
             </View>
           </View>
@@ -830,20 +805,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 16,
     letterSpacing: 8,
-  },
-  pinInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1d29',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 12,
-  },
-  pinInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#ffffff',
   },
   primaryButton: {
     flexDirection: 'row',
