@@ -21,6 +21,7 @@ function RootLayoutNav() {
       <Stack.Screen name="parent" options={{ headerShown: false }} />
       <Stack.Screen name="monitoring" options={{ headerShown: false }} />
       <Stack.Screen name="disguise" options={{ headerShown: false }} />
+      <Stack.Screen name="child-pairing" options={{ headerShown: false }} />
     </Stack>
   );
 }
