@@ -61,16 +61,16 @@ export async function startAudioMonitoring(): Promise<boolean> {
     await recording.prepareToRecordAsync({
       android: {
         extension: '.m4a',
-        outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-        audioEncoder: Audio.AndroidAudioEncoder.AAC,
+        outputFormat: 2,
+        audioEncoder: 3,
         sampleRate: 44100,
         numberOfChannels: 1,
         bitRate: 128000,
       },
       ios: {
         extension: '.m4a',
-        outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-        audioQuality: Audio.IOSAudioQuality.HIGH,
+        outputFormat: 'aac',
+        audioQuality: 127,
         sampleRate: 44100,
         numberOfChannels: 1,
         bitRate: 128000,
