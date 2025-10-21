@@ -11,6 +11,9 @@ export default function CalculatorPad({ onPinEntered }: CalculatorPadProps) {
   const [previousValue, setPreviousValue] = useState<number | null>(null);
   const [operation, setOperation] = useState<string | null>(null);
   const [pinBuffer, setPinBuffer] = useState<string>('');
+  const [shouldResetDisplay, setShouldResetDisplay] = useState<boolean>(false);
+  const [lastOperation, setLastOperation] = useState<string | null>(null);
+  const [lastOperand, setLastOperand] = useState<number | null>(null);
 
   const hapticFeedback = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -18,50 +21,89 @@ export default function CalculatorPad({ onPinEntered }: CalculatorPadProps) {
     }
   }, []);
 
+  const formatDisplay = (value: number): string => {
+    if (isNaN(value) || !isFinite(value)) return 'Error';
+    
+    const str = value.toString();
+    if (str.length > 12) {
+      if (value > 999999999999) {
+        return value.toExponential(6);
+      }
+      return parseFloat(value.toFixed(9)).toString();
+    }
+    return str;
+  };
+
   const handleNumber = useCallback((num: string) => {
     hapticFeedback();
     
     setPinBuffer((prev) => prev + num);
     
     setDisplay((prev) => {
-      if (prev === '0' || operation !== null && previousValue !== null && display === previousValue.toString()) {
+      if (shouldResetDisplay || prev === '0') {
+        setShouldResetDisplay(false);
         return num;
       }
+      
+      if (prev.includes('.') && num === '.') {
+        return prev;
+      }
+      
+      if (prev.length >= 12 && num !== '.') {
+        return prev;
+      }
+      
       return prev + num;
     });
-  }, [operation, previousValue, display, hapticFeedback]);
+  }, [shouldResetDisplay, hapticFeedback]);
+
+  const handleDecimal = useCallback(() => {
+    hapticFeedback();
+    
+    if (shouldResetDisplay) {
+      setDisplay('0.');
+      setShouldResetDisplay(false);
+      return;
+    }
+    
+    if (!display.includes('.')) {
+      setDisplay(display + '.');
+    }
+  }, [display, shouldResetDisplay, hapticFeedback]);
+
+  const performCalculation = useCallback((prev: number, current: number, op: string): number => {
+    switch (op) {
+      case '+':
+        return prev + current;
+      case '-':
+        return prev - current;
+      case '×':
+        return prev * current;
+      case '÷':
+        return current !== 0 ? prev / current : NaN;
+      default:
+        return current;
+    }
+  }, []);
 
   const handleOperation = useCallback((op: string) => {
     hapticFeedback();
     
     const current = parseFloat(display);
     
-    if (previousValue !== null && operation !== null) {
-      let result = previousValue;
-      
-      switch (operation) {
-        case '+':
-          result = previousValue + current;
-          break;
-        case '-':
-          result = previousValue - current;
-          break;
-        case '×':
-          result = previousValue * current;
-          break;
-        case '÷':
-          result = current !== 0 ? previousValue / current : 0;
-          break;
-      }
-      
-      setDisplay(result.toString());
+    if (previousValue !== null && operation !== null && !shouldResetDisplay) {
+      const result = performCalculation(previousValue, current, operation);
+      setDisplay(formatDisplay(result));
       setPreviousValue(result);
     } else {
       setPreviousValue(current);
     }
     
     setOperation(op);
-  }, [display, previousValue, operation, hapticFeedback]);
+    setShouldResetDisplay(true);
+    setLastOperation(null);
+    setLastOperand(null);
+  }, [display, previousValue, operation, shouldResetDisplay, hapticFeedback, performCalculation]);
 
   const handleEquals = useCallback(() => {
     hapticFeedback();
@@ -70,32 +112,26 @@ export default function CalculatorPad({ onPinEntered }: CalculatorPadProps) {
       console.log('[Calculator] PIN entered, checking...');
       onPinEntered(pinBuffer);
       setPinBuffer('');
+      return;
     }
     
     if (previousValue !== null && operation !== null) {
       const current = parseFloat(display);
-      let result = previousValue;
+      const result = performCalculation(previousValue, current, operation);
       
-      switch (operation) {
-        case '+':
-          result = previousValue + current;
-          break;
-        case '-':
-          result = previousValue - current;
-          break;
-        case '×':
-          result = previousValue * current;
-          break;
-        case '÷':
-          result = current !== 0 ? previousValue / current : 0;
-          break;
-      }
-      
-      setDisplay(result.toString());
+      setDisplay(formatDisplay(result));
+      setLastOperation(operation);
+      setLastOperand(current);
       setPreviousValue(null);
       setOperation(null);
+      setShouldResetDisplay(true);
+    } else if (lastOperation !== null && lastOperand !== null) {
+      const current = parseFloat(display);
+      const result = performCalculation(current, lastOperand, lastOperation);
+      setDisplay(formatDisplay(result));
+      setShouldResetDisplay(true);
     }
-  }, [display, previousValue, operation, pinBuffer, onPinEntered, hapticFeedback]);
+  }, [display, previousValue, operation, pinBuffer, lastOperation, lastOperand, onPinEntered, hapticFeedback, performCalculation]);
 
   const handleClear = useCallback(() => {
     hapticFeedback();
@@ -103,18 +139,24 @@ export default function CalculatorPad({ onPinEntered }: CalculatorPadProps) {
     setPreviousValue(null);
     setOperation(null);
     setPinBuffer('');
+    setShouldResetDisplay(false);
+    setLastOperation(null);
+    setLastOperand(null);
   }, [hapticFeedback]);
 
   const handlePercent = useCallback(() => {
     hapticFeedback();
     const current = parseFloat(display);
-    setDisplay((current / 100).toString());
+    const result = current / 100;
+    setDisplay(formatDisplay(result));
+    setShouldResetDisplay(false);
   }, [display, hapticFeedback]);
 
   const handlePlusMinus = useCallback(() => {
     hapticFeedback();
     const current = parseFloat(display);
-    setDisplay((-current).toString());
+    const result = -current;
+    setDisplay(formatDisplay(result));
   }, [display, hapticFeedback]);
 
   const Button = ({ 
@@ -190,7 +232,7 @@ export default function CalculatorPad({ onPinEntered }: CalculatorPadProps) {
           <View style={styles.zeroButton}>
             <Button value="0" onPress={() => handleNumber('0')} />
           </View>
-          <Button value="." onPress={() => handleNumber('.')} />
+          <Button value="." onPress={handleDecimal} />
           <Button value="=" onPress={handleEquals} type="equals" />
         </View>
       </View>
@@ -201,64 +243,69 @@ export default function CalculatorPad({ onPinEntered }: CalculatorPadProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1d29',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    backgroundColor: '#000000',
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
   },
   displayContainer: {
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 30,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   display: {
-    fontSize: 64,
-    fontWeight: '300' as const,
+    fontSize: 80,
+    fontWeight: '200' as const,
     color: '#ffffff',
+    letterSpacing: -2,
   },
   buttonGrid: {
-    gap: 12,
+    gap: 14,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
   },
   button: {
     flex: 1,
     aspectRatio: 1,
-    backgroundColor: '#2d3142',
+    backgroundColor: '#333333',
     borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 0,
   },
   zeroButton: {
     flex: 2,
-    marginRight: 12,
+    marginRight: 14,
   },
   operationButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#ff9500',
   },
   specialButton: {
-    backgroundColor: '#4a4e69',
+    backgroundColor: '#a5a5a5',
   },
   equalsButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#ff9500',
   },
   buttonText: {
-    fontSize: 32,
+    fontSize: 38,
     fontWeight: '400' as const,
     color: '#ffffff',
   },
   operationText: {
-    fontSize: 36,
-    fontWeight: '500' as const,
+    fontSize: 42,
+    fontWeight: '300' as const,
   },
   specialText: {
-    fontSize: 28,
+    fontSize: 36,
+    fontWeight: '400' as const,
+    color: '#000000',
   },
   equalsText: {
-    fontSize: 36,
-    fontWeight: '600' as const,
+    fontSize: 42,
+    fontWeight: '300' as const,
   },
 });

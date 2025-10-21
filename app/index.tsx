@@ -63,6 +63,23 @@ export default function CalculatorScreen() {
         console.log('[Calculator] Vault not initialized, redirecting to setup');
         router.replace('/setup');
       } else {
+        const autoLoginEnabled = await AsyncStorage.getItem('auto_login_enabled');
+        const savedPin = await AsyncStorage.getItem('saved_login_pin');
+        
+        if (autoLoginEnabled === 'true' && savedPin && userRole === 'parent') {
+          console.log('[Calculator] Auto-login enabled, logging in automatically');
+          setCurrentPin(savedPin);
+          setLocked(false);
+          
+          const apps = await getInstalledApps();
+          setInstalledApps(apps);
+          await logActivity('app_opened', 'Parent dashboard auto-login');
+          
+          router.replace('/parent');
+          setIsLoading(false);
+          return;
+        }
+        
         const apps = await getInstalledApps();
         setInstalledApps(apps);
         await logActivity('app_opened', 'Calculator app opened');
@@ -98,6 +115,9 @@ export default function CalculatorScreen() {
           
           setCurrentPin(pin);
           setLocked(false);
+          
+          await AsyncStorage.setItem('auto_login_enabled', 'true');
+          await AsyncStorage.setItem('saved_login_pin', pin);
           
           await logActivity('app_opened', 'Parent dashboard accessed');
           router.push('/parent');
@@ -168,11 +188,11 @@ export default function CalculatorScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1d29',
+    backgroundColor: '#000000',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#1a1d29',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
