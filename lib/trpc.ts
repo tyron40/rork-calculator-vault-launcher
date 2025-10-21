@@ -11,10 +11,14 @@ const getBaseUrl = () => {
   }
 
   if (typeof window !== 'undefined') {
-    return `${window.location.origin}/api`;
+    const origin = window.location.origin;
+    console.log('[tRPC] Using window origin:', origin);
+    return `${origin}/api`;
   }
 
-  return 'http://localhost:8081/api';
+  const url = 'http://localhost:8081/api';
+  console.log('[tRPC] Using localhost URL:', url);
+  return url;
 };
 
 export const trpcClient = createTRPCClient<AppRouter>({
@@ -26,6 +30,18 @@ export const trpcClient = createTRPCClient<AppRouter>({
         return {
           'Content-Type': 'application/json',
         };
+      },
+      fetch(url, options) {
+        console.log('[tRPC] Fetching:', url);
+        return fetch(url, options).then(async (res) => {
+          if (!res.ok) {
+            console.error('[tRPC] Response not OK:', res.status, res.statusText);
+            const text = await res.text();
+            console.error('[tRPC] Response body:', text.substring(0, 500));
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          return res;
+        });
       },
     }),
   ],

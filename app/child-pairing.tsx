@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { QrCode } from 'lucide-react-native';
-import { generateDeviceId, getDeviceName } from '@/services/connection';
+import { generateDeviceId, getDeviceName, saveConnectionConfig } from '@/services/connection';
 import { trpcClient } from '@/lib/trpc';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { startChildMonitoring } from '@/services/childMonitoring';
 
 export default function ChildPairingScreen() {
   const router = useRouter();
@@ -60,6 +61,19 @@ export default function ChildPairingScreen() {
 
           await AsyncStorage.setItem('child_pin', result.childPin);
           await AsyncStorage.setItem('parent_device_id', result.parentDeviceId);
+          await AsyncStorage.setItem('user_role', 'child');
+          
+          const deviceName = await getDeviceName();
+          await saveConnectionConfig({
+            userRole: 'child',
+            parentPin: null,
+            childPin: result.childPin,
+            deviceId: deviceId,
+            deviceName: deviceName,
+          });
+
+          console.log('[ChildPairing] Starting child monitoring...');
+          await startChildMonitoring(deviceId);
 
           Alert.alert(
             'Connected!',
