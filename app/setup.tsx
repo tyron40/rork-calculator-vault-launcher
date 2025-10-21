@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Lock, Shield, QrCode } from 'lucide-react-native';
+import { useVaultStore } from '@/store/vaultStore';
 import { initializeVault } from '@/services/storage';
 import { saveConnectionConfig, generateDeviceId, getDeviceName, generatePairingCode, savePairingCode } from '@/services/connection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,6 +10,7 @@ import { UserRole } from '@/store/vaultStore';
 
 export default function SetupScreen() {
   const router = useRouter();
+  const { setLocked, setCurrentPin, setUserRole: setStoreUserRole } = useVaultStore();
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [parentPin, setParentPin] = useState<string>('');
   const [confirmParentPin, setConfirmParentPin] = useState<string>('');
@@ -94,13 +96,20 @@ export default function SetupScreen() {
         });
 
         console.log('[Setup] Parent vault initialized successfully');
+        
+        setCurrentPin(parentPin);
+        setLocked(false);
+        setStoreUserRole('parent');
+        
         Alert.alert(
           'Success',
-          `Parent mode setup complete!\n\nParent PIN: ${parentPin}\nChild PIN: ${childPin}\n\nUse parent PIN to access monitoring dashboard.`,
+          `Parent mode setup complete!\n\nParent PIN: ${parentPin}\nChild PIN: ${childPin}\n\nYou will now be taken to the parent dashboard.`,
           [
             {
-              text: 'OK',
-              onPress: () => router.replace('/onboarding'),
+              text: 'Continue',
+              onPress: () => {
+                router.replace('/onboarding');
+              },
             },
           ]
         );

@@ -11,7 +11,8 @@ import {
   Settings as SettingsIcon,
   Radio,
   QrCode,
-  Search
+  Search,
+  Calculator
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { 
@@ -64,6 +65,23 @@ export default function ParentDashboardScreen() {
   const handleLock = () => {
     setLocked(true);
     router.replace('/');
+  };
+
+  const handleToggleDisguise = () => {
+    Alert.alert(
+      'Switch to Calculator',
+      'This will show the calculator disguise. You can return by entering your parent PIN again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Switch',
+          onPress: () => {
+            console.log('[ParentDashboard] Switching to calculator disguise');
+            router.replace('/');
+          },
+        },
+      ]
+    );
   };
 
   const handlePairDevice = async () => {
@@ -200,9 +218,14 @@ export default function ParentDashboardScreen() {
           <Text style={styles.headerTitle}>👨‍👩‍👧 Parent Dashboard</Text>
           <Text style={styles.headerSubtitle}>{connectedDevices.length} devices connected</Text>
         </View>
-        <TouchableOpacity style={styles.lockButton} onPress={handleLock}>
-          <Lock size={20} color="#ffffff" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.disguiseButton} onPress={handleToggleDisguise}>
+            <Calculator size={20} color="#ffffff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.lockButton} onPress={handleLock}>
+            <Lock size={20} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.tabs}>
@@ -418,10 +441,22 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     marginTop: 4,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   lockButton: {
     width: 40,
     height: 40,
     backgroundColor: '#2d3142',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  disguiseButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#3b82f6',
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',

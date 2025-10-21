@@ -4,16 +4,29 @@ import { useRouter } from 'expo-router';
 import { Home, Shield, Eye, Settings as SettingsIcon, Smartphone } from 'lucide-react-native';
 import { setOnboardingComplete } from '@/services/storage';
 import { openLauncherSettings } from '@/services/apps';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useVaultStore } from '@/store/vaultStore';
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { isLocked } = useVaultStore();
 
   const handleComplete = async () => {
     try {
       await setOnboardingComplete();
-      router.replace('/');
+      
+      const roleStr = await AsyncStorage.getItem('user_role');
+      const userRole = roleStr as 'parent' | 'child' | null;
+      
+      if (userRole === 'parent' && !isLocked) {
+        console.log('[Onboarding] Redirecting to parent dashboard');
+        router.replace('/parent');
+      } else {
+        router.replace('/');
+      }
     } catch (error) {
       console.error('[Onboarding] Error completing onboarding:', error);
+      router.replace('/');
     }
   };
 
