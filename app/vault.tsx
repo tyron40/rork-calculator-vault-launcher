@@ -67,12 +67,12 @@ export default function VaultScreen() {
     const isHidden = hiddenApps.includes(app.packageName);
     
     Alert.alert(
-      isHidden ? 'Remove Protection' : 'Add Protection',
-      `${isHidden ? 'Remove protection from' : 'Add parental protection to'} ${app.label}?`,
+      isHidden ? 'Remove Monitoring' : 'Add Monitoring',
+      `${isHidden ? 'Remove monitoring from' : 'Monitor and restrict'} ${app.label}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: isHidden ? 'Remove' : 'Protect',
+          text: isHidden ? 'Remove' : 'Monitor',
           onPress: async () => {
             try {
               if (isHidden) {
@@ -176,9 +176,9 @@ export default function VaultScreen() {
           {filteredHiddenApps.length === 0 ? (
             <View style={styles.emptyState}>
               <Grid size={64} color="#4a4e69" />
-              <Text style={styles.emptyTitle}>No Protected Apps</Text>
+              <Text style={styles.emptyTitle}>No Monitored Apps</Text>
               <Text style={styles.emptyText}>
-                Long press any app in &quot;All Apps&quot; to add parental protection
+                Long press apps in &quot;All Apps&quot; to add monitoring restrictions
               </Text>
             </View>
           ) : (
