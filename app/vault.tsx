@@ -17,7 +17,7 @@ import {
 
 export default function VaultScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'hidden' | 'all' | 'settings'>('hidden');
+  const [activeTab, setActiveTab] = useState<'hidden' | 'all' | 'settings'>('settings');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   const { 
@@ -67,12 +67,12 @@ export default function VaultScreen() {
     const isHidden = hiddenApps.includes(app.packageName);
     
     Alert.alert(
-      isHidden ? 'Unhide App' : 'Hide App',
-      `${isHidden ? 'Unhide' : 'Hide'} ${app.label}?`,
+      isHidden ? 'Remove Protection' : 'Add Protection',
+      `${isHidden ? 'Remove protection from' : 'Add parental protection to'} ${app.label}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: isHidden ? 'Unhide' : 'Hide',
+          text: isHidden ? 'Remove' : 'Protect',
           onPress: async () => {
             try {
               if (isHidden) {
@@ -124,7 +124,7 @@ export default function VaultScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          {isDecoyMode ? '🎭 Decoy Vault' : '🔐 Vault'}
+          {isDecoyMode ? '🎭 Child Mode' : '👶 Child Device'}
         </Text>
         <TouchableOpacity style={styles.lockButton} onPress={handleLock}>
           <Lock size={20} color="#ffffff" />
@@ -133,12 +133,22 @@ export default function VaultScreen() {
 
       <View style={styles.tabs}>
         <TouchableOpacity
+          style={[styles.tab, activeTab === 'settings' && styles.tabActive]}
+          onPress={() => setActiveTab('settings')}
+        >
+          <SettingsIcon size={20} color={activeTab === 'settings' ? '#8b5cf6' : '#9ca3af'} />
+          <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>
+            Monitoring
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'hidden' && styles.tabActive]}
           onPress={() => setActiveTab('hidden')}
         >
           <Grid size={20} color={activeTab === 'hidden' ? '#8b5cf6' : '#9ca3af'} />
           <Text style={[styles.tabText, activeTab === 'hidden' && styles.tabTextActive]}>
-            Hidden ({hiddenAppsList.length})
+            Protected ({hiddenAppsList.length})
           </Text>
         </TouchableOpacity>
 
@@ -149,16 +159,6 @@ export default function VaultScreen() {
           <List size={20} color={activeTab === 'all' ? '#8b5cf6' : '#9ca3af'} />
           <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
             All Apps
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'settings' && styles.tabActive]}
-          onPress={() => setActiveTab('settings')}
-        >
-          <SettingsIcon size={20} color={activeTab === 'settings' ? '#8b5cf6' : '#9ca3af'} />
-          <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>
-            Settings
           </Text>
         </TouchableOpacity>
       </View>
@@ -176,9 +176,9 @@ export default function VaultScreen() {
           {filteredHiddenApps.length === 0 ? (
             <View style={styles.emptyState}>
               <Grid size={64} color="#4a4e69" />
-              <Text style={styles.emptyTitle}>No Hidden Apps</Text>
+              <Text style={styles.emptyTitle}>No Protected Apps</Text>
               <Text style={styles.emptyText}>
-                Long press any app in &quot;All Apps&quot; to hide it
+                Long press any app in &quot;All Apps&quot; to add parental protection
               </Text>
             </View>
           ) : (
@@ -203,7 +203,14 @@ export default function VaultScreen() {
 
       {activeTab === 'settings' && (
         <View style={styles.settingsContent}>
-          <Text style={styles.settingsTitle}>Monitoring Settings</Text>
+          <View style={styles.welcomeCard}>
+            <Text style={styles.welcomeTitle}>👶 Child Device Mode</Text>
+            <Text style={styles.welcomeText}>
+              This device is being monitored with parental controls. The parent can view activity, control settings, and ensure your safety remotely.
+            </Text>
+          </View>
+          
+          <Text style={styles.settingsTitle}>Monitoring Status</Text>
           
           <View style={styles.settingCard}>
             <View style={styles.settingRow}>
@@ -298,9 +305,9 @@ export default function VaultScreen() {
           </TouchableOpacity>
 
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>ℹ️ About Monitoring</Text>
+            <Text style={styles.infoTitle}>ℹ️ About Parental Controls</Text>
             <Text style={styles.infoText}>
-              This app provides legal parental monitoring with full consent. All monitoring features comply with local laws and privacy regulations.
+              This app provides legal parental monitoring with full consent. Parents can monitor activity, location, and app usage. All features comply with local laws and privacy regulations. You agreed to these terms during setup.
             </Text>
           </View>
         </View>
@@ -463,5 +470,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#93c5fd',
     lineHeight: 20,
+  },
+  welcomeCard: {
+    backgroundColor: '#10b981',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  welcomeText: {
+    fontSize: 14,
+    color: '#ffffff',
+    lineHeight: 20,
+    opacity: 0.9,
   },
 });
