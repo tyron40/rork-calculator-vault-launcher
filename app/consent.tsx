@@ -74,7 +74,7 @@ export default function ConsentScreen() {
         [
           {
             text: 'Continue',
-            onPress: () => router.replace('/setup'),
+            onPress: () => router.replace('/connect'),
           },
         ]
       );
