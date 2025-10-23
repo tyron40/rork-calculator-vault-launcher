@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Switch, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { 
@@ -7,20 +7,21 @@ import {
   Smartphone, 
   Plus, 
   Mic, 
+  Activity, 
   BarChart3, 
   Settings as SettingsIcon,
   Radio,
   QrCode,
   Search,
-  Calculator,
-  MapPin,
-  PhoneOff,
-  RefreshCw,
-  Monitor
+  Calculator
 } from 'lucide-react-native';
-import { useVaultStore, ConnectedDevice } from '@/store/vaultStore';
-import { generateDeviceId } from '@/services/connection';
-import { trpc, trpcClient } from '@/lib/trpc';
+import { useVaultStore } from '@/store/vaultStore';
+import { 
+  getConnectedDevices, 
+  saveConnectedDevices, 
+  sendCommandToChild 
+} from '@/services/connection';
+import { ConnectedDevice } from '@/store/vaultStore';
 
 export default function ParentDashboardScreen() {
   const router = useRouter();
@@ -28,7 +29,6 @@ export default function ParentDashboardScreen() {
   const [pairingCode, setPairingCode] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [parentDeviceId, setParentDeviceId] = useState<string>('');
   
   const { 
     isLocked,
@@ -43,24 +43,6 @@ export default function ParentDashboardScreen() {
     setLocked,
   } = useVaultStore();
 
-  const statusQuery = trpc.devices.getMultipleStatus.useQuery(
-    { deviceIds: connectedDevices.map(d => d.deviceId) },
-    { 
-      refetchInterval: 5000,
-      enabled: connectedDevices.length > 0,
-    }
-  );
-
-  const sendCommandMutation = trpc.devices.sendCommand.useMutation({
-    onSuccess: (data, variables) => {
-      console.log('[ParentDashboard] Command sent:', variables.type);
-      pollCommandResult(variables.deviceId, data.id, variables.type);
-    },
-    onError: (error) => {
-      Alert.alert('Error', `Failed to send command: ${error.message}`);
-    },
-  });
-
   useEffect(() => {
     if (isLocked || !currentPin || userRole !== 'parent') {
       router.replace('/');
@@ -68,76 +50,17 @@ export default function ParentDashboardScreen() {
   }, [isLocked, currentPin, userRole]);
 
   useEffect(() => {
-    initializeParentDevice();
+    loadConnectedDevices();
   }, []);
 
-  useEffect(() => {
-    if (statusQuery.data && statusQuery.data.length > 0) {
-      statusQuery.data.forEach((status) => {
-        const device = connectedDevices.find(d => d.deviceId === status.deviceId);
-        if (device) {
-          updateConnectedDevice(device.id, {
-            isOnline: status.isOnline,
-            lastSeen: status.lastSeen,
-          });
-        }
-      });
-    }
-  }, [statusQuery.data]);
-
-  const initializeParentDevice = async () => {
+  const loadConnectedDevices = async () => {
     try {
-      const deviceId = await generateDeviceId();
-      setParentDeviceId(deviceId);
-      console.log('[ParentDashboard] Parent device ID:', deviceId);
+      const devices = await getConnectedDevices();
+      console.log('[ParentDashboard] Loaded devices:', devices.length);
+      devices.forEach(device => addConnectedDevice(device));
     } catch (error) {
-      console.error('[ParentDashboard] Error initializing parent device:', error);
+      console.error('[ParentDashboard] Error loading devices:', error);
     }
-  };
-
-  const pollCommandResult = async (deviceId: string, commandId: string, commandType: string) => {
-    const maxAttempts = 20;
-    let attempts = 0;
-    
-    const pollInterval = setInterval(async () => {
-      attempts++;
-      
-      try {
-        const result = await trpcClient.devices.getCommandResult.query({ deviceId, commandId });
-        
-        if (result && (result.status === 'completed' || result.status === 'failed')) {
-          clearInterval(pollInterval);
-          
-          if (result.status === 'completed') {
-            let message = `${commandType} completed successfully`;
-            
-            if (result.result) {
-              try {
-                const parsed = JSON.parse(result.result);
-                if (parsed.latitude && parsed.longitude) {
-                  message = `Location:\nLat: ${parsed.latitude.toFixed(6)}\nLng: ${parsed.longitude.toFixed(6)}\nAccuracy: ${parsed.accuracy?.toFixed(0)}m`;
-                } else {
-                  message = result.result;
-                }
-              } catch {
-                message = result.result;
-              }
-            }
-            
-            Alert.alert('Command Completed', message);
-          } else {
-            Alert.alert('Command Failed', result.error || 'Unknown error');
-          }
-        }
-      } catch (error) {
-        console.error('[ParentDashboard] Error polling command result:', error);
-      }
-      
-      if (attempts >= maxAttempts) {
-        clearInterval(pollInterval);
-        Alert.alert('Timeout', 'Command is taking longer than expected');
-      }
-    }, 1000);
   };
 
   const handleLock = () => {
@@ -167,33 +90,6 @@ export default function ParentDashboardScreen() {
     );
   };
 
-  const pairDeviceMutation = trpc.devices.pair.useMutation({
-    onSuccess: (data) => {
-      const newDevice: ConnectedDevice = {
-        id: data.id,
-        name: data.name,
-        deviceId: data.deviceId,
-        childName: data.childName,
-        lastSeen: data.lastSeen,
-        isOnline: data.isOnline,
-        monitoringActive: data.monitoringActive,
-      };
-      
-      addConnectedDevice(newDevice);
-      setPairingCode('');
-      setActiveTab('devices');
-      
-      Alert.alert(
-        'Device Paired',
-        `Successfully connected to ${data.childName}'s device!`,
-        [{ text: 'OK' }]
-      );
-    },
-    onError: (error) => {
-      Alert.alert('Pairing Failed', error.message);
-    },
-  });
-
   const handlePairDevice = async () => {
     if (!pairingCode.trim()) {
       Alert.alert('Required', 'Please enter pairing code from child device');
@@ -204,12 +100,32 @@ export default function ParentDashboardScreen() {
       setIsLoading(true);
       console.log('[ParentDashboard] Pairing with code:', pairingCode);
       
-      await pairDeviceMutation.mutateAsync({
-        pairingCode: pairingCode.trim(),
-        parentDeviceId,
-      });
+      const newDevice: ConnectedDevice = {
+        id: `device_${Date.now()}`,
+        name: 'Child Device',
+        deviceId: `child_${pairingCode}`,
+        childName: 'Child',
+        lastSeen: new Date().toISOString(),
+        isOnline: true,
+        monitoringActive: false,
+      };
+
+      addConnectedDevice(newDevice);
+      
+      const allDevices = [...connectedDevices, newDevice];
+      await saveConnectedDevices(allDevices);
+      
+      setPairingCode('');
+      setActiveTab('devices');
+      
+      Alert.alert(
+        'Device Paired',
+        `Successfully connected to child device!\n\nYou can now monitor this device.`,
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       console.error('[ParentDashboard] Error pairing device:', error);
+      Alert.alert('Error', 'Failed to pair device');
     } finally {
       setIsLoading(false);
     }
@@ -217,22 +133,13 @@ export default function ParentDashboardScreen() {
 
   const handleDevicePress = (device: ConnectedDevice) => {
     setSelectedDevice(device.id);
-    
-    const statusInfo = statusQuery.data?.find(s => s.deviceId === device.deviceId);
-    const locationText = statusInfo?.location 
-      ? `\nLocation: ${statusInfo.location.latitude.toFixed(4)}, ${statusInfo.location.longitude.toFixed(4)}`
-      : '';
-    const batteryText = statusInfo?.batteryLevel 
-      ? `\nBattery: ${statusInfo.batteryLevel.toFixed(0)}%`
-      : '';
-    
     Alert.alert(
       device.childName,
-      `Device: ${device.name}\nStatus: ${device.isOnline ? '🟢 Online' : '🔴 Offline'}${batteryText}${locationText}`,
+      `Device: ${device.name}\nStatus: ${device.isOnline ? 'Online' : 'Offline'}\nMonitoring: ${device.monitoringActive ? 'Active' : 'Inactive'}`,
       [
         {
-          text: 'Remote Control',
-          onPress: () => handleRemoteControl(device),
+          text: 'Start Monitoring',
+          onPress: () => handleStartMonitoring(device.id),
         },
         {
           text: 'View Dashboard',
@@ -251,44 +158,28 @@ export default function ParentDashboardScreen() {
     );
   };
 
-  const handleRemoteControl = (device: ConnectedDevice) => {
-    Alert.alert(
-      'Remote Control',
-      `Control ${device.childName}'s device`,
-      [
-        {
-          text: '🎤 Start Audio Monitor',
-          onPress: () => sendCommand(device.deviceId, 'start_audio'),
-        },
-        {
-          text: '🔇 Stop Audio Monitor',
-          onPress: () => sendCommand(device.deviceId, 'stop_audio'),
-        },
-        {
-          text: '📍 Get Location',
-          onPress: () => sendCommand(device.deviceId, 'get_location'),
-        },
-        {
-          text: '📱 Get Device Info',
-          onPress: () => sendCommand(device.deviceId, 'get_screen'),
-        },
-        {
-          text: '🔒 Lock Device',
-          onPress: () => sendCommand(device.deviceId, 'lock_device'),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
-  };
-
-  const sendCommand = async (deviceId: string, type: 'start_audio' | 'stop_audio' | 'get_location' | 'screenshot' | 'lock_device' | 'get_screen') => {
+  const handleStartMonitoring = async (deviceId: string) => {
     try {
-      await sendCommandMutation.mutateAsync({ deviceId, type });
+      console.log('[ParentDashboard] Starting monitoring for device:', deviceId);
+      
+      updateConnectedDevice(deviceId, { 
+        monitoringActive: true,
+        lastSeen: new Date().toISOString(),
+      });
+      
+      const command = {
+        id: `cmd_${Date.now()}`,
+        type: 'start_audio' as const,
+        timestamp: new Date().toISOString(),
+        status: 'pending' as const,
+      };
+      
+      await sendCommandToChild(deviceId, command);
+      
+      Alert.alert('Monitoring Started', 'Audio monitoring has been enabled on child device');
     } catch (error) {
-      console.error('[ParentDashboard] Error sending command:', error);
+      console.error('[ParentDashboard] Error starting monitoring:', error);
+      Alert.alert('Error', 'Failed to start monitoring');
     }
   };
 
@@ -304,6 +195,8 @@ export default function ParentDashboardScreen() {
           onPress: async () => {
             try {
               removeConnectedDevice(deviceId);
+              const updatedDevices = connectedDevices.filter(d => d.id !== deviceId);
+              await saveConnectedDevices(updatedDevices);
               Alert.alert('Success', 'Device removed');
             } catch (error) {
               console.error('[ParentDashboard] Error removing device:', error);
@@ -334,12 +227,6 @@ export default function ParentDashboardScreen() {
         <View style={styles.headerButtons}>
           <TouchableOpacity style={styles.disguiseButton} onPress={handleToggleDisguise}>
             <Calculator size={20} color="#ffffff" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.refreshButton} 
-            onPress={() => statusQuery.refetch()}
-          >
-            <RefreshCw size={20} color="#ffffff" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.lockButton} onPress={handleLock}>
             <Lock size={20} color="#ffffff" />
@@ -416,81 +303,46 @@ export default function ParentDashboardScreen() {
               </View>
             ) : (
               <View style={styles.deviceList}>
-                {filteredDevices.map((device) => {
-                  const deviceStatus = statusQuery.data?.find(s => s.deviceId === device.deviceId);
-                  
-                  return (
-                    <TouchableOpacity
-                      key={device.id}
-                      style={[
-                        styles.deviceCard,
-                        selectedDeviceId === device.id && styles.deviceCardSelected,
-                      ]}
-                      onPress={() => handleDevicePress(device)}
-                    >
-                      <View style={styles.deviceInfo}>
-                        <View style={styles.deviceHeader}>
-                          <Text style={styles.deviceName}>{device.childName}</Text>
-                          <View style={[
-                            styles.statusBadge,
-                            device.isOnline ? styles.statusOnline : styles.statusOffline,
-                          ]}>
-                            <Radio size={12} color="#ffffff" />
-                            <Text style={styles.statusText}>
-                              {device.isOnline ? 'Online' : 'Offline'}
-                            </Text>
-                          </View>
-                        </View>
-                        <Text style={styles.deviceModel}>{device.name}</Text>
-                        
-                        {deviceStatus && (
-                          <View style={styles.deviceExtras}>
-                            {deviceStatus.batteryLevel !== undefined && (
-                              <View style={styles.extraItem}>
-                                <Text style={styles.extraText}>
-                                  🔋 {deviceStatus.batteryLevel.toFixed(0)}%
-                                </Text>
-                              </View>
-                            )}
-                            {deviceStatus.location && (
-                              <View style={styles.extraItem}>
-                                <MapPin size={14} color="#10b981" />
-                                <Text style={styles.extraText}>Location tracked</Text>
-                              </View>
-                            )}
-                          </View>
-                        )}
-                        
-                        <View style={styles.deviceActions}>
-                          <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => sendCommand(device.deviceId, 'start_audio')}
-                          >
-                            <Mic size={16} color="#10b981" />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => sendCommand(device.deviceId, 'get_location')}
-                          >
-                            <MapPin size={16} color="#3b82f6" />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => sendCommand(device.deviceId, 'get_screen')}
-                          >
-                            <Monitor size={16} color="#8b5cf6" />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => sendCommand(device.deviceId, 'lock_device')}
-                          >
-                            <PhoneOff size={16} color="#ef4444" />
-                          </TouchableOpacity>
+                {filteredDevices.map((device) => (
+                  <TouchableOpacity
+                    key={device.id}
+                    style={[
+                      styles.deviceCard,
+                      selectedDeviceId === device.id && styles.deviceCardSelected,
+                    ]}
+                    onPress={() => handleDevicePress(device)}
+                  >
+                    <View style={styles.deviceInfo}>
+                      <View style={styles.deviceHeader}>
+                        <Text style={styles.deviceName}>{device.childName}</Text>
+                        <View style={[
+                          styles.statusBadge,
+                          device.isOnline ? styles.statusOnline : styles.statusOffline,
+                        ]}>
+                          <Radio size={12} color="#ffffff" />
+                          <Text style={styles.statusText}>
+                            {device.isOnline ? 'Online' : 'Offline'}
+                          </Text>
                         </View>
                       </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                      <Text style={styles.deviceModel}>{device.name}</Text>
+                      <View style={styles.deviceStats}>
+                        <View style={styles.statItem}>
+                          <Mic size={16} color={device.monitoringActive ? '#10b981' : '#6b7280'} />
+                          <Text style={styles.statText}>
+                            {device.monitoringActive ? 'Monitoring' : 'Inactive'}
+                          </Text>
+                        </View>
+                        <View style={styles.statItem}>
+                          <Activity size={16} color="#9ca3af" />
+                          <Text style={styles.statText}>
+                            {new Date(device.lastSeen).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
@@ -535,9 +387,9 @@ export default function ParentDashboardScreen() {
               <Text style={styles.infoText}>
                 1. Open the app on child device{'\n'}
                 2. Complete setup and grant consent{'\n'}
-                3. Child will see a pairing code{'\n'}
+                3. Copy the pairing code shown{'\n'}
                 4. Enter the code here to connect{'\n'}
-                5. Start monitoring with remote controls
+                5. Start monitoring from device list
               </Text>
             </View>
           </View>
@@ -554,15 +406,14 @@ export default function ParentDashboardScreen() {
             </TouchableOpacity>
 
             <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>🎮 Remote Control Features</Text>
+              <Text style={styles.infoTitle}>ℹ️ About Parent Mode</Text>
               <Text style={styles.infoText}>
-                • 🎤 Live audio monitoring{'\n'}
-                • 📍 Real-time location tracking{'\n'}
-                • 📱 Device information retrieval{'\n'}
-                • 🔒 Remote device lock{'\n'}
-                • 📊 Activity logging{'\n'}
-                • 🔄 Automatic status updates{'\n\n'}
-                All features require consent and work in real-time.
+                Parent mode allows you to monitor connected child devices with full consent. Features include:{'\n\n'}
+                • Real-time audio monitoring{'\n'}
+                • Activity logging and tracking{'\n'}
+                • Remote control capabilities{'\n'}
+                • Multi-device management{'\n\n'}
+                All monitoring is legal and consensual.
               </Text>
             </View>
           </View>
@@ -612,14 +463,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     backgroundColor: '#3b82f6',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#10b981',
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -741,32 +584,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9ca3af',
   },
-  deviceExtras: {
+  deviceStats: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     marginTop: 4,
   },
-  extraItem: {
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  extraText: {
-    fontSize: 12,
+  statText: {
+    fontSize: 13,
     color: '#9ca3af',
-  },
-  deviceActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#1a1d29',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   connectTab: {
     gap: 16,

@@ -9,10 +9,8 @@ export default function DisguiseCalculator() {
   const [display, setDisplay] = useState<string>('0');
   const [previousValue, setPreviousValue] = useState<number | null>(null);
   const [operation, setOperation] = useState<string | null>(null);
+  const [waitingForOperand, setWaitingForOperand] = useState<boolean>(false);
   const [pinBuffer, setPinBuffer] = useState<string>('');
-  const [shouldResetDisplay, setShouldResetDisplay] = useState<boolean>(false);
-  const [lastOperation, setLastOperation] = useState<string | null>(null);
-  const [lastOperand, setLastOperand] = useState<number | null>(null);
 
   const hapticFeedback = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -46,19 +44,6 @@ export default function DisguiseCalculator() {
     }
   }, [router]);
 
-  const formatDisplay = (value: number): string => {
-    if (isNaN(value) || !isFinite(value)) return 'Error';
-    
-    const str = value.toString();
-    if (str.length > 12) {
-      if (value > 999999999999) {
-        return value.toExponential(6);
-      }
-      return parseFloat(value.toFixed(9)).toString();
-    }
-    return str;
-  };
-
   const handleNumber = useCallback((num: string) => {
     hapticFeedback();
     
@@ -71,131 +56,129 @@ export default function DisguiseCalculator() {
       return newBuffer;
     });
 
-    setDisplay((prev) => {
-      if (shouldResetDisplay || prev === '0') {
-        setShouldResetDisplay(false);
-        return num;
-      }
-      
-      if (prev.includes('.') && num === '.') {
-        return prev;
-      }
-      
-      if (prev.length >= 12 && num !== '.') {
-        return prev;
-      }
-      
-      return prev + num;
-    });
-  }, [shouldResetDisplay, hapticFeedback, checkPinAndRedirect]);
+    if (waitingForOperand) {
+      setDisplay(num);
+      setWaitingForOperand(false);
+    } else {
+      setDisplay((prev) => (prev === '0' ? num : prev + num));
+    }
+  }, [waitingForOperand, hapticFeedback, checkPinAndRedirect]);
 
   const handleDecimal = useCallback(() => {
     hapticFeedback();
     
-    if (shouldResetDisplay) {
+    if (waitingForOperand) {
       setDisplay('0.');
-      setShouldResetDisplay(false);
-      return;
+      setWaitingForOperand(false);
+    } else if (display.indexOf('.') === -1) {
+      setDisplay((prev) => prev + '.');
     }
-    
-    if (!display.includes('.')) {
-      setDisplay(display + '.');
-    }
-  }, [display, shouldResetDisplay, hapticFeedback]);
-
-  const performCalculation = useCallback((prev: number, current: number, op: string): number => {
-    switch (op) {
-      case '+':
-        return prev + current;
-      case '-':
-        return prev - current;
-      case '×':
-        return prev * current;
-      case '÷':
-        return current !== 0 ? prev / current : NaN;
-      default:
-        return current;
-    }
-  }, []);
+  }, [display, waitingForOperand, hapticFeedback]);
 
   const handleOperation = useCallback((nextOp: string) => {
     hapticFeedback();
     setPinBuffer('');
     
-    const current = parseFloat(display);
-    
-    if (previousValue !== null && operation !== null && !shouldResetDisplay) {
-      const result = performCalculation(previousValue, current, operation);
-      setDisplay(formatDisplay(result));
-      setPreviousValue(result);
-    } else {
-      setPreviousValue(current);
+    const inputValue = parseFloat(display);
+
+    if (previousValue === null) {
+      setPreviousValue(inputValue);
+    } else if (operation) {
+      const currentValue = previousValue;
+      let newValue = currentValue;
+
+      switch (operation) {
+        case '+':
+          newValue = currentValue + inputValue;
+          break;
+        case '-':
+          newValue = currentValue - inputValue;
+          break;
+        case '×':
+          newValue = currentValue * inputValue;
+          break;
+        case '÷':
+          newValue = inputValue !== 0 ? currentValue / inputValue : 0;
+          break;
+        case '%':
+          newValue = (currentValue / 100) * inputValue;
+          break;
+      }
+
+      setPreviousValue(newValue);
+      setDisplay(String(newValue));
     }
-    
+
+    setWaitingForOperand(true);
     setOperation(nextOp);
-    setShouldResetDisplay(true);
-    setLastOperation(null);
-    setLastOperand(null);
-  }, [display, previousValue, operation, shouldResetDisplay, hapticFeedback, performCalculation]);
+  }, [display, previousValue, operation, hapticFeedback]);
 
   const handleEquals = useCallback(() => {
     hapticFeedback();
     
     if (pinBuffer.length >= 4) {
       checkPinAndRedirect(pinBuffer);
-      return;
     }
-    
-    if (previousValue !== null && operation !== null) {
-      const current = parseFloat(display);
-      const result = performCalculation(previousValue, current, operation);
-      
-      setDisplay(formatDisplay(result));
-      setLastOperation(operation);
-      setLastOperand(current);
+
+    const inputValue = parseFloat(display);
+
+    if (previousValue !== null && operation) {
+      const currentValue = previousValue;
+      let newValue = currentValue;
+
+      switch (operation) {
+        case '+':
+          newValue = currentValue + inputValue;
+          break;
+        case '-':
+          newValue = currentValue - inputValue;
+          break;
+        case '×':
+          newValue = currentValue * inputValue;
+          break;
+        case '÷':
+          newValue = inputValue !== 0 ? currentValue / inputValue : 0;
+          break;
+        case '%':
+          newValue = (currentValue / 100) * inputValue;
+          break;
+      }
+
+      setDisplay(String(newValue));
       setPreviousValue(null);
       setOperation(null);
-      setShouldResetDisplay(true);
-    } else if (lastOperation !== null && lastOperand !== null) {
-      const current = parseFloat(display);
-      const result = performCalculation(current, lastOperand, lastOperation);
-      setDisplay(formatDisplay(result));
-      setShouldResetDisplay(true);
+      setWaitingForOperand(true);
     }
-  }, [display, previousValue, operation, pinBuffer, lastOperation, lastOperand, hapticFeedback, checkPinAndRedirect, performCalculation]);
+  }, [display, previousValue, operation, pinBuffer, hapticFeedback, checkPinAndRedirect]);
 
   const handleClear = useCallback(() => {
     hapticFeedback();
     setDisplay('0');
     setPreviousValue(null);
     setOperation(null);
+    setWaitingForOperand(false);
     setPinBuffer('');
-    setShouldResetDisplay(false);
-    setLastOperation(null);
-    setLastOperand(null);
   }, [hapticFeedback]);
 
   const handleClearEntry = useCallback(() => {
     hapticFeedback();
     setDisplay('0');
-    setShouldResetDisplay(false);
+    setWaitingForOperand(false);
   }, [hapticFeedback]);
 
   const handlePercent = useCallback(() => {
     hapticFeedback();
     setPinBuffer('');
-    const current = parseFloat(display);
-    const result = current / 100;
-    setDisplay(formatDisplay(result));
-    setShouldResetDisplay(false);
+    const currentValue = parseFloat(display);
+    setDisplay(String(currentValue / 100));
+    setWaitingForOperand(true);
   }, [display, hapticFeedback]);
 
   const handlePlusMinus = useCallback(() => {
     hapticFeedback();
     setPinBuffer('');
-    const current = parseFloat(display);
-    const result = -current;
-    setDisplay(formatDisplay(result));
+    const currentValue = parseFloat(display);
+    setDisplay(String(-currentValue));
   }, [display, hapticFeedback]);
 
   const handleBackspace = useCallback(() => {
@@ -317,35 +300,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   displayContainer: {
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    paddingHorizontal: 24,
-    paddingBottom: 30,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 60,
   },
   operationDisplay: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '300' as const,
     color: '#a0a0a0',
     marginBottom: 8,
   },
   display: {
-    fontSize: 80,
+    fontSize: 72,
     fontWeight: '200' as const,
     color: '#ffffff',
-    letterSpacing: -2,
   },
   buttonGrid: {
-    gap: 14,
+    gap: 12,
   },
   row: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 12,
   },
   button: {
     flex: 1,
@@ -354,41 +336,38 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 0,
   },
   wideButton: {
     flex: 2,
   },
   operationButton: {
-    backgroundColor: '#ff9500',
+    backgroundColor: '#ff9f0a',
   },
   specialButton: {
-    backgroundColor: '#a5a5a5',
+    backgroundColor: '#505050',
   },
   equalsButton: {
-    backgroundColor: '#ff9500',
+    backgroundColor: '#ff9f0a',
   },
   buttonText: {
-    fontSize: 38,
+    fontSize: 36,
     fontWeight: '400' as const,
     color: '#ffffff',
   },
   operationText: {
-    fontSize: 42,
-    fontWeight: '300' as const,
+    fontSize: 40,
+    fontWeight: '500' as const,
   },
   specialText: {
-    fontSize: 32,
-    fontWeight: '400' as const,
-    color: '#000000',
+    fontSize: 28,
   },
   equalsText: {
-    fontSize: 42,
-    fontWeight: '300' as const,
+    fontSize: 40,
+    fontWeight: '600' as const,
   },
   exitHint: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 40,
+    top: 50,
     left: 20,
     width: 32,
     height: 32,

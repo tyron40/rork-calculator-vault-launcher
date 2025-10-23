@@ -4,8 +4,7 @@ import { useRouter } from 'expo-router';
 import { Lock, Shield, QrCode } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { initializeVault } from '@/services/storage';
-import { saveConnectionConfig, generateDeviceId, getDeviceName } from '@/services/connection';
-import { trpcClient } from '@/lib/trpc';
+import { saveConnectionConfig, generateDeviceId, getDeviceName, generatePairingCode, savePairingCode } from '@/services/connection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserRole } from '@/store/vaultStore';
 
@@ -117,13 +116,9 @@ export default function SetupScreen() {
       } else {
         await initializeVault(childPin);
         
+        const code = await generatePairingCode();
         const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
-        const pairingResult = await trpcClient.devices.generatePairingCode.mutate({
-          deviceId,
-          childName: consentData.childName || 'Child Device',
-        });
-        
-        const code = pairingResult.code;
+        await savePairingCode(code, deviceId, consentData.childName || 'Child Device');
         
         await saveConnectionConfig({
           userRole: 'child',

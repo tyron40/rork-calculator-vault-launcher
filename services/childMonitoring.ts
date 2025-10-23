@@ -1,23 +1,10 @@
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
-import * as Location from 'expo-location';
-import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trpcClient } from '@/lib/trpc';
+import { getRemoteCommands, updateCommandStatus, RemoteCommand } from './connection';
 
 let audioRecording: Audio.Recording | null = null;
 let monitoringInterval: ReturnType<typeof setInterval> | null = null;
-let statusUpdateInterval: ReturnType<typeof setInterval> | null = null;
-
-interface RemoteCommand {
-  id: string;
-  deviceId: string;
-  type: 'screenshot' | 'start_audio' | 'stop_audio' | 'get_location' | 'lock_device' | 'get_screen';
-  timestamp: string;
-  status: 'pending' | 'executing' | 'completed' | 'failed';
-  result?: string;
-  error?: string;
-}
 
 export async function startChildMonitoring(deviceId: string): Promise<void> {
   console.log('[ChildMonitoring] Starting monitoring for device:', deviceId);
@@ -29,16 +16,10 @@ export async function startChildMonitoring(deviceId: string): Promise<void> {
 
   monitoringInterval = setInterval(async () => {
     await checkForCommands(deviceId);
-  }, 3000);
-
-  statusUpdateInterval = setInterval(async () => {
-    await updateDeviceStatus(deviceId);
-  }, 10000);
+  }, 5000);
 
   await AsyncStorage.setItem('child_monitoring_active', 'true');
   await AsyncStorage.setItem('child_monitoring_device_id', deviceId);
-  
-  await updateDeviceStatus(deviceId);
 }
 
 export async function stopChildMonitoring(): Promise<void> {
@@ -47,11 +28,6 @@ export async function stopChildMonitoring(): Promise<void> {
   if (monitoringInterval) {
     clearInterval(monitoringInterval);
     monitoringInterval = null;
-  }
-
-  if (statusUpdateInterval) {
-    clearInterval(statusUpdateInterval);
-    statusUpdateInterval = null;
   }
 
   if (audioRecording) {
@@ -72,9 +48,10 @@ export async function stopChildMonitoring(): Promise<void> {
 
 async function checkForCommands(deviceId: string): Promise<void> {
   try {
-    const commands = await trpcClient.devices.getCommands.query({ deviceId });
+    const commands = await getRemoteCommands(deviceId);
+    const pendingCommands = commands.filter(cmd => cmd.status === 'pending');
 
-    for (const command of commands) {
+    for (const command of pendingCommands) {
       await executeCommand(deviceId, command);
     }
   } catch (error) {
@@ -82,108 +59,42 @@ async function checkForCommands(deviceId: string): Promise<void> {
   }
 }
 
-async function updateDeviceStatus(deviceId: string): Promise<void> {
-  try {
-    const batteryLevel = Platform.OS !== 'web' ? Math.random() * 100 : undefined;
-    
-    let location: { latitude: number; longitude: number; accuracy: number } | undefined;
-    
-    if (Platform.OS !== 'web') {
-      try {
-        const { status } = await Location.getForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          location = {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-            accuracy: loc.coords.accuracy || 0,
-          };
-        }
-      } catch (error) {
-        console.log('[ChildMonitoring] Location not available');
-      }
-    }
-
-    try {
-      await trpcClient.devices.updateStatus.mutate({
-        deviceId,
-        batteryLevel,
-        location,
-      });
-      console.log('[ChildMonitoring] Device status updated successfully');
-    } catch (error: any) {
-      if (error?.message?.includes('JSON Parse')) {
-        console.error('[ChildMonitoring] Backend connection error - server may not be responding correctly');
-      } else {
-        console.error('[ChildMonitoring] Error updating device status:', error?.message || error);
-      }
-    }
-  } catch (error) {
-    console.error('[ChildMonitoring] Error in updateDeviceStatus:', error);
-  }
-}
-
 async function executeCommand(deviceId: string, command: RemoteCommand): Promise<void> {
   console.log('[ChildMonitoring] Executing command:', command.type);
   
   try {
-    await trpcClient.devices.updateCommandStatus.mutate({
-      deviceId,
-      commandId: command.id,
-      status: 'executing',
-    });
-
-    let result: string | undefined;
+    await updateCommandStatus(deviceId, command.id, 'executing');
 
     switch (command.type) {
       case 'start_audio':
         await handleStartAudio(deviceId, command);
-        result = 'Audio monitoring started';
         break;
       
       case 'stop_audio':
         await handleStopAudio(deviceId, command);
-        result = 'Audio monitoring stopped';
         break;
       
       case 'screenshot':
-        result = await handleScreenshot(deviceId, command);
+        await handleScreenshot(deviceId, command);
         break;
       
       case 'get_location':
-        result = await handleGetLocation(deviceId, command);
+        await handleGetLocation(deviceId, command);
         break;
       
       case 'lock_device':
         await handleLockDevice(deviceId, command);
-        result = 'Device locked';
-        break;
-      
-      case 'get_screen':
-        result = await handleGetScreen(deviceId, command);
         break;
       
       default:
         throw new Error(`Unknown command type: ${command.type}`);
     }
 
-    await trpcClient.devices.updateCommandStatus.mutate({
-      deviceId,
-      commandId: command.id,
-      status: 'completed',
-      result,
-    });
+    await updateCommandStatus(deviceId, command.id, 'completed');
   } catch (error) {
     console.error('[ChildMonitoring] Error executing command:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    await trpcClient.devices.updateCommandStatus.mutate({
-      deviceId,
-      commandId: command.id,
-      status: 'failed',
-      error: errorMessage,
-    });
+    await updateCommandStatus(deviceId, command.id, 'failed', undefined, errorMessage);
   }
 }
 
@@ -209,16 +120,16 @@ async function handleStartAudio(deviceId: string, command: RemoteCommand): Promi
   await recording.prepareToRecordAsync({
     android: {
       extension: '.m4a',
-      outputFormat: 2,
-      audioEncoder: 3,
+      outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+      audioEncoder: Audio.AndroidAudioEncoder.AAC,
       sampleRate: 44100,
       numberOfChannels: 1,
       bitRate: 128000,
     },
     ios: {
       extension: '.m4a',
-      outputFormat: 'aac',
-      audioQuality: 127,
+      outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+      audioQuality: Audio.IOSAudioQuality.HIGH,
       sampleRate: 44100,
       numberOfChannels: 1,
       bitRate: 128000,
@@ -256,57 +167,19 @@ async function handleStopAudio(deviceId: string, command: RemoteCommand): Promis
   console.log('[ChildMonitoring] Audio recording stopped');
 }
 
-async function handleScreenshot(deviceId: string, command: RemoteCommand): Promise<string> {
+async function handleScreenshot(deviceId: string, command: RemoteCommand): Promise<void> {
   console.log('[ChildMonitoring] Screenshot requested');
-  return 'Screenshot captured (feature requires native implementation)';
+  throw new Error('Screenshot feature not yet implemented');
 }
 
-async function handleGetLocation(deviceId: string, command: RemoteCommand): Promise<string> {
+async function handleGetLocation(deviceId: string, command: RemoteCommand): Promise<void> {
   console.log('[ChildMonitoring] Location requested');
-  
-  if (Platform.OS === 'web') {
-    return 'Location not available on web';
-  }
-  
-  try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      return 'Location permission denied';
-    }
-
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-
-    return JSON.stringify({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-      accuracy: location.coords.accuracy,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('[ChildMonitoring] Error getting location:', error);
-    return 'Failed to get location';
-  }
+  throw new Error('Location feature not yet implemented');
 }
 
 async function handleLockDevice(deviceId: string, command: RemoteCommand): Promise<void> {
   console.log('[ChildMonitoring] Lock device requested');
-  await AsyncStorage.setItem('device_locked', 'true');
-}
-
-async function handleGetScreen(deviceId: string, command: RemoteCommand): Promise<string> {
-  console.log('[ChildMonitoring] Screen capture requested');
-  
-  const deviceInfo = {
-    brand: Device.brand,
-    modelName: Device.modelName,
-    osName: Device.osName,
-    osVersion: Device.osVersion,
-    timestamp: new Date().toISOString(),
-  };
-  
-  return JSON.stringify(deviceInfo);
+  throw new Error('Lock device feature not yet implemented');
 }
 
 export async function isMonitoringActive(): Promise<boolean> {
