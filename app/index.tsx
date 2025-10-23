@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { hasParentalConsent } from '@/services/monitoring';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,8 +21,8 @@ export default function CalculatorDisguise() {
     try {
       console.log('[Calculator] Checking initial setup');
       
-      const hasConsent = await hasParentalConsent();
-      if (!hasConsent) {
+      const consent = await AsyncStorage.getItem('parental_consent');
+      if (!consent) {
         console.log('[Calculator] No parental consent, redirecting to consent screen');
         router.replace('/consent');
         setIsLoading(false);
@@ -38,7 +38,7 @@ export default function CalculatorDisguise() {
       }
       
       setAccessPin(pin);
-      console.log('[Calculator] Calculator disguise ready');
+      console.log('[Calculator] Calculator disguise ready with PIN');
       setIsLoading(false);
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);

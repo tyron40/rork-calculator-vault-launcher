@@ -243,5 +243,5 @@ export async function getConsentInfo(): Promise<{
 
 export async function hasParentalConsent(): Promise<boolean> {
   const consent = await getConsentInfo();
-  return consent !== null && !!consent.parentName && !!consent.childName;
+  return consent !== null && !!consent.parentName;
 }

@@ -59,18 +59,8 @@ export default function RoleSelectionScreen() {
       
       setStoreUserRole(selectedRole);
       
-      Alert.alert('Setup Complete', 'Device configured successfully!', [
-        {
-          text: 'Continue',
-          onPress: () => {
-            if (selectedRole === 'parent') {
-              router.replace('/parent');
-            } else {
-              router.replace('/setup');
-            }
-          }
-        }
-      ]);
+      console.log('[RoleSelection] Setup complete, redirecting to setup screen');
+      router.replace('/setup');
     } catch (error) {
       console.error('[RoleSelection] Error during setup:', error);
       Alert.alert('Setup Failed', 'Failed to configure device. Please try again.');
@@ -104,21 +94,12 @@ export default function RoleSelectionScreen() {
       await AsyncStorage.setItem('user_role', selectedRole);
       setStoreUserRole(selectedRole);
       
-      console.log('[RoleSelection] Login successful');
+      console.log('[RoleSelection] Login successful, redirecting to', selectedRole === 'parent' ? 'parent dashboard' : 'calculator');
       
       if (selectedRole === 'parent') {
         router.replace('/parent');
       } else {
-        Alert.alert(
-          'Device Monitored',
-          'This device is monitored for your safety with parental consent.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/'),
-            }
-          ]
-        );
+        router.replace('/');
       }
     } catch (error) {
       console.error('[RoleSelection] Error during login:', error);

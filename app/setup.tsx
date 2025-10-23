@@ -86,6 +86,7 @@ export default function SetupScreen() {
         await initializeVault(parentPin);
         await AsyncStorage.setItem('parent_pin', parentPin);
         await AsyncStorage.setItem('child_pin', childPin);
+        await AsyncStorage.setItem('access_pin', parentPin);
         
         await saveConnectionConfig({
           userRole: 'parent',
@@ -101,20 +102,11 @@ export default function SetupScreen() {
         setLocked(false);
         setStoreUserRole('parent');
         
-        Alert.alert(
-          'Success',
-          `Parent mode setup complete!\n\nParent PIN: ${parentPin}\nChild PIN: ${childPin}\n\nYou will now be taken to the parent dashboard.`,
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                router.replace('/onboarding');
-              },
-            },
-          ]
-        );
+        router.replace('/onboarding');
       } else {
         await initializeVault(childPin);
+        await AsyncStorage.setItem('child_pin', childPin);
+        await AsyncStorage.setItem('access_pin', childPin);
         
         const code = await generatePairingCode();
         const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
@@ -128,13 +120,18 @@ export default function SetupScreen() {
           deviceName,
         });
 
-        console.log('[Setup] Child vault initialized successfully');
+        console.log('[Setup] Child vault initialized with pairing code:', code);
+        
+        setCurrentPin(childPin);
+        setLocked(false);
+        setStoreUserRole('child');
+        
         Alert.alert(
           'Success',
           `Child mode setup complete!\n\nYour Pairing Code: ${code}\n\nShare this code with parent to connect devices.\nCode expires in 5 minutes.`,
           [
             {
-              text: 'OK',
+              text: 'Continue',
               onPress: () => router.replace('/onboarding'),
             },
           ]
