@@ -85,6 +85,8 @@ export default function RoleSelectionScreen() {
         ? await AsyncStorage.getItem('parent_pin')
         : await AsyncStorage.getItem('child_pin');
 
+      console.log('[RoleSelection] Stored PIN exists:', !!storedPin);
+
       if (loginPin !== storedPin) {
         Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect');
         setLoginPin('');
@@ -92,6 +94,7 @@ export default function RoleSelectionScreen() {
       }
 
       await AsyncStorage.setItem('user_role', selectedRole);
+      await AsyncStorage.setItem('access_pin', loginPin);
       setStoreUserRole(selectedRole);
       
       console.log('[RoleSelection] Login successful, redirecting to', selectedRole === 'parent' ? 'parent dashboard' : 'child dashboard');

@@ -31,13 +31,33 @@ export default function ChildDashboardScreen() {
     userRole,
     setParentDeviceId,
     setLocked,
+    setCurrentPin,
+    setUserRole: setStoreUserRole,
   } = useVaultStore();
 
   useEffect(() => {
-    if (isLocked || !currentPin || userRole !== 'child') {
-      router.replace('/');
-    }
-  }, [isLocked, currentPin, userRole, router]);
+    const initializeChild = async () => {
+      try {
+        const pin = await AsyncStorage.getItem('child_pin');
+        const role = await AsyncStorage.getItem('user_role');
+        
+        if (!pin || role !== 'child') {
+          console.log('[ChildDashboard] Invalid access, redirecting');
+          router.replace('/');
+          return;
+        }
+        
+        setCurrentPin(pin);
+        setStoreUserRole('child');
+        console.log('[ChildDashboard] Initialized successfully');
+      } catch (error) {
+        console.error('[ChildDashboard] Error initializing:', error);
+        router.replace('/');
+      }
+    };
+    
+    initializeChild();
+  }, []);
 
   const checkPairingStatus = useCallback(async () => {
     try {

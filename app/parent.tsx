@@ -43,13 +43,33 @@ export default function ParentDashboardScreen() {
     setSelectedDevice,
     updateConnectedDevice,
     setLocked,
+    setCurrentPin,
+    setUserRole: setStoreUserRole,
   } = useVaultStore();
 
   useEffect(() => {
-    if (isLocked || !currentPin || userRole !== 'parent') {
-      router.replace('/');
-    }
-  }, [isLocked, currentPin, userRole]);
+    const initializeParent = async () => {
+      try {
+        const pin = await AsyncStorage.getItem('parent_pin');
+        const role = await AsyncStorage.getItem('user_role');
+        
+        if (!pin || role !== 'parent') {
+          console.log('[ParentDashboard] Invalid access, redirecting');
+          router.replace('/');
+          return;
+        }
+        
+        setCurrentPin(pin);
+        setStoreUserRole('parent');
+        console.log('[ParentDashboard] Initialized successfully');
+      } catch (error) {
+        console.error('[ParentDashboard] Error initializing:', error);
+        router.replace('/');
+      }
+    };
+    
+    initializeParent();
+  }, []);
 
   useEffect(() => {
     loadConnectedDevices();
