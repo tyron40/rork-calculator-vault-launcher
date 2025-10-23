@@ -13,7 +13,8 @@ import {
   Radio,
   QrCode,
   Search,
-  Calculator
+  Calculator,
+  LogOut
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { 
@@ -88,6 +89,30 @@ export default function ParentDashboardScreen() {
   const handleLock = () => {
     setLocked(true);
     router.replace('/');
+  };
+
+  const handleChangeAccount = async () => {
+    Alert.alert(
+      'Change Account',
+      'Return to role selection to login with a different account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Change Account',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('user_role');
+              setStoreUserRole(null);
+              console.log('[ParentDashboard] Returning to role selection');
+              router.replace('/role-selection');
+            } catch (error) {
+              console.error('[ParentDashboard] Error changing account:', error);
+              Alert.alert('Error', 'Failed to change account');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleToggleDisguise = async () => {
@@ -499,6 +524,14 @@ export default function ParentDashboardScreen() {
               <Text style={styles.dashboardButtonText}>View Monitoring Dashboard</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.changeAccountButton}
+              onPress={handleChangeAccount}
+            >
+              <LogOut size={20} color="#f59e0b" />
+              <Text style={styles.changeAccountButtonText}>Change Account</Text>
+            </TouchableOpacity>
+
             <View style={styles.infoCard}>
               <Text style={styles.infoTitle}>ℹ️ About Parent Mode</Text>
               <Text style={styles.infoText}>
@@ -839,5 +872,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: '#ffffff',
+  },
+  changeAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2d3142',
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 2,
+    borderColor: '#f59e0b',
+  },
+  changeAccountButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#f59e0b',
   },
 });

@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Wifi,
-  WifiOff
+  WifiOff,
+  LogOut
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -217,6 +218,30 @@ export default function ChildDashboardScreen() {
     );
   };
 
+  const handleChangeAccount = async () => {
+    Alert.alert(
+      'Change Account',
+      'Return to role selection to login with a different account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Change Account',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('user_role');
+              setStoreUserRole(null);
+              console.log('[ChildDashboard] Returning to role selection');
+              router.replace('/role-selection');
+            } catch (error) {
+              console.error('[ChildDashboard] Error changing account:', error);
+              Alert.alert('Error', 'Failed to change account');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -227,6 +252,9 @@ export default function ChildDashboardScreen() {
           </Text>
         </View>
         <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.changeAccountButton} onPress={handleChangeAccount}>
+            <LogOut size={20} color="#ffffff" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.disguiseButton} onPress={handleToggleDisguise}>
             <Calculator size={20} color="#ffffff" />
           </TouchableOpacity>
@@ -405,6 +433,14 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     gap: 8,
+  },
+  changeAccountButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#f59e0b',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   disguiseButton: {
     width: 40,
