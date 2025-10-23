@@ -69,8 +69,9 @@ export default function CalculatorScreen() {
         
         if (userRole === 'child') {
           const config = await getConnectionConfig();
-          if (config && config.deviceId) {
-            await startChildMonitoring(config.deviceId);
+          const parentDeviceId = await AsyncStorage.getItem('parent_device_id');
+          if (config && config.deviceId && parentDeviceId) {
+            await startChildMonitoring(config.deviceId, parentDeviceId);
             console.log('[Calculator] Child monitoring started');
           }
         }

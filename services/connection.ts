@@ -15,6 +15,7 @@ export interface ConnectionConfig {
   childPin: string | null;
   deviceId: string;
   deviceName: string;
+  parentDeviceId?: string | null;
 }
 
 export async function generateDeviceId(): Promise<string> {
