@@ -110,7 +110,7 @@ export default function ConsentScreen() {
               </View>
               <Text style={styles.roleTitle}>Parent/Guardian</Text>
               <Text style={styles.roleDescription}>
-                Monitor and connect to child devices. View activity logs and control settings.
+                Monitor child devices with live audio, camera access, remote control, and activity logs.
               </Text>
             </TouchableOpacity>
 

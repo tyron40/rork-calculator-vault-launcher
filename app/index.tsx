@@ -3,11 +3,11 @@ import { View, StyleSheet, Alert, ActivityIndicator, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import CalculatorPad from '@/components/CalculatorPad';
 import { useVaultStore } from '@/store/vaultStore';
-import { verifyPin, isVaultInitialized, getHiddenApps } from '@/services/storage';
+import { isVaultInitialized } from '@/services/storage';
 import { getInstalledApps } from '@/services/apps';
 import { hasParentalConsent, logActivity } from '@/services/monitoring';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getConnectionConfig, generateDeviceId } from '@/services/connection';
+import { getConnectionConfig } from '@/services/connection';
 import { startChildMonitoring } from '@/services/childMonitoring';
 import { UserRole } from '@/store/vaultStore';
 
@@ -19,9 +19,7 @@ export default function CalculatorScreen() {
   const { 
     setLocked, 
     setCurrentPin, 
-    setInstalledApps, 
-    setHiddenApps,
-    setDecoyMode,
+    setInstalledApps,
     setUserRole,
   } = useVaultStore();
 
@@ -104,36 +102,50 @@ export default function CalculatorScreen() {
           router.push('/parent');
           return;
         } else if (pin === childPin) {
-          console.log('[Calculator] Child PIN verified (parent device), opening calculator mode');
+          console.log('[Calculator] Child PIN verified (parent device), redirecting to calculator');
           
           setCurrentPin(pin);
-          setDecoyMode(true);
           setLocked(false);
           
-          const hiddenApps = await getHiddenApps(pin, true);
-          setHiddenApps(hiddenApps);
+          await logActivity('app_opened', 'Calculator mode accessed (parent device)');
           
-          await logActivity('app_opened', 'Vault unlocked (child mode on parent device)');
-          router.push('/vault');
+          Alert.alert(
+            'Calculator Mode',
+            'Accessing calculator in regular mode.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  router.replace('/disguise');
+                },
+              },
+            ]
+          );
           return;
         }
       } else {
-        const isMainPin = await verifyPin(pin, false);
-        const isDecoyPin = await verifyPin(pin, true);
+        const childPin = await AsyncStorage.getItem('child_pin');
         
-        if (isMainPin || isDecoyPin) {
-          console.log('[Calculator] PIN verified, unlocking vault');
+        if (pin === childPin) {
+          console.log('[Calculator] Child PIN verified, showing monitoring status');
           
           setCurrentPin(pin);
-          setDecoyMode(isDecoyPin);
           setLocked(false);
           
-          const hiddenApps = await getHiddenApps(pin, isDecoyPin);
-          setHiddenApps(hiddenApps);
+          await logActivity('app_opened', 'Child device accessed');
           
-          await logActivity('app_opened', `Vault unlocked ${isDecoyPin ? '(decoy mode)' : '(main mode)'}`);
-          
-          router.push('/vault');
+          Alert.alert(
+            'Device Monitored',
+            'This device is monitored for your safety with parental consent. Continue using the calculator normally.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  router.replace('/disguise');
+                },
+              },
+            ]
+          );
           return;
         }
       }
