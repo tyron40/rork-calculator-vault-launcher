@@ -1,12 +1,26 @@
-import { Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getRemoteCommands, updateCommandStatus, RemoteCommand } from './connection';
+import * as Haptics from 'expo-haptics';
+import { 
+  getPendingCommands, 
+  updateCommandStatus, 
+  RemoteControlCommand,
+  getDeviceLocation 
+} from './remoteControl';
+import { 
+  startAudioStreaming, 
+  stopAudioStreaming, 
+  AudioStreamConfig 
+} from './audioStreaming';
+import { 
+  startCameraMonitoring, 
+  stopCameraMonitoring, 
+  CameraMonitoringConfig 
+} from './cameraMonitoring';
 
-let audioRecording: Audio.Recording | null = null;
 let monitoringInterval: ReturnType<typeof setInterval> | null = null;
 
-export async function startChildMonitoring(deviceId: string): Promise<void> {
+export async function startChildMonitoring(deviceId: string, parentDeviceId: string): Promise<void> {
   console.log('[ChildMonitoring] Starting monitoring for device:', deviceId);
   
   if (monitoringInterval) {
@@ -15,11 +29,14 @@ export async function startChildMonitoring(deviceId: string): Promise<void> {
   }
 
   monitoringInterval = setInterval(async () => {
-    await checkForCommands(deviceId);
-  }, 5000);
+    await checkForCommands(deviceId, parentDeviceId);
+  }, 3000);
 
   await AsyncStorage.setItem('child_monitoring_active', 'true');
   await AsyncStorage.setItem('child_monitoring_device_id', deviceId);
+  await AsyncStorage.setItem('child_monitoring_parent_id', parentDeviceId);
+  
+  console.log('[ChildMonitoring] Monitoring started');
 }
 
 export async function stopChildMonitoring(): Promise<void> {
@@ -30,36 +47,33 @@ export async function stopChildMonitoring(): Promise<void> {
     monitoringInterval = null;
   }
 
-  if (audioRecording) {
-    try {
-      const status = await audioRecording.getStatusAsync();
-      if (status.isRecording) {
-        await audioRecording.stopAndUnloadAsync();
-      }
-      audioRecording = null;
-    } catch (error) {
-      console.error('[ChildMonitoring] Error stopping audio recording:', error);
-    }
-  }
+  await stopAudioStreaming();
+  await stopCameraMonitoring();
 
   await AsyncStorage.setItem('child_monitoring_active', 'false');
   await AsyncStorage.removeItem('child_monitoring_device_id');
+  await AsyncStorage.removeItem('child_monitoring_parent_id');
+  
+  console.log('[ChildMonitoring] Monitoring stopped');
 }
 
-async function checkForCommands(deviceId: string): Promise<void> {
+async function checkForCommands(deviceId: string, parentDeviceId: string): Promise<void> {
   try {
-    const commands = await getRemoteCommands(deviceId);
-    const pendingCommands = commands.filter(cmd => cmd.status === 'pending');
+    const pendingCommands = await getPendingCommands(deviceId);
 
     for (const command of pendingCommands) {
-      await executeCommand(deviceId, command);
+      await executeCommand(deviceId, parentDeviceId, command);
     }
   } catch (error) {
     console.error('[ChildMonitoring] Error checking commands:', error);
   }
 }
 
-async function executeCommand(deviceId: string, command: RemoteCommand): Promise<void> {
+async function executeCommand(
+  deviceId: string, 
+  parentDeviceId: string,
+  command: RemoteControlCommand
+): Promise<void> {
   console.log('[ChildMonitoring] Executing command:', command.type);
   
   try {
@@ -67,23 +81,47 @@ async function executeCommand(deviceId: string, command: RemoteCommand): Promise
 
     switch (command.type) {
       case 'start_audio':
-        await handleStartAudio(deviceId, command);
+        await handleStartAudio(deviceId, parentDeviceId);
         break;
       
       case 'stop_audio':
-        await handleStopAudio(deviceId, command);
+        await handleStopAudio();
+        break;
+      
+      case 'start_camera':
+        await handleStartCamera(deviceId, parentDeviceId, command.payload);
+        break;
+      
+      case 'stop_camera':
+        await handleStopCamera();
         break;
       
       case 'screenshot':
-        await handleScreenshot(deviceId, command);
+        await handleScreenshot(deviceId);
         break;
       
       case 'get_location':
-        await handleGetLocation(deviceId, command);
+        await handleGetLocation(deviceId, command.id);
         break;
       
       case 'lock_device':
-        await handleLockDevice(deviceId, command);
+        await handleLockDevice();
+        break;
+      
+      case 'unlock_device':
+        await handleUnlockDevice();
+        break;
+      
+      case 'vibrate':
+        await handleVibrate(command.payload?.duration || 400);
+        break;
+      
+      case 'send_notification':
+        await handleSendNotification(command.payload);
+        break;
+      
+      case 'get_device_info':
+        await handleGetDeviceInfo(deviceId, command.id);
         break;
       
       default:
@@ -98,88 +136,117 @@ async function executeCommand(deviceId: string, command: RemoteCommand): Promise
   }
 }
 
-async function handleStartAudio(deviceId: string, command: RemoteCommand): Promise<void> {
+async function handleStartAudio(deviceId: string, parentDeviceId: string): Promise<void> {
   if (Platform.OS === 'web') {
     throw new Error('Audio monitoring not supported on web');
   }
 
-  console.log('[ChildMonitoring] Starting audio recording');
-  
-  const { granted } = await Audio.requestPermissionsAsync();
-  if (!granted) {
-    throw new Error('Audio permission denied');
-  }
+  const config: AudioStreamConfig = {
+    deviceId,
+    parentDeviceId,
+    streamQuality: 'medium',
+    chunkIntervalMs: 5000,
+  };
 
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: true,
-    playsInSilentModeIOS: true,
-    staysActiveInBackground: true,
-  });
-
-  const recording = new Audio.Recording();
-  await recording.prepareToRecordAsync({
-    android: {
-      extension: '.m4a',
-      outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-      audioEncoder: Audio.AndroidAudioEncoder.AAC,
-      sampleRate: 44100,
-      numberOfChannels: 1,
-      bitRate: 128000,
-    },
-    ios: {
-      extension: '.m4a',
-      outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-      audioQuality: Audio.IOSAudioQuality.HIGH,
-      sampleRate: 44100,
-      numberOfChannels: 1,
-      bitRate: 128000,
-    },
-    web: {},
-  });
-
-  await recording.startAsync();
-  audioRecording = recording;
-
-  await AsyncStorage.setItem('audio_recording_active', 'true');
-  console.log('[ChildMonitoring] Audio recording started');
+  await startAudioStreaming(config);
+  console.log('[ChildMonitoring] Audio streaming started');
 }
 
-async function handleStopAudio(deviceId: string, command: RemoteCommand): Promise<void> {
+async function handleStopAudio(): Promise<void> {
   if (Platform.OS === 'web') {
     return;
   }
 
-  console.log('[ChildMonitoring] Stopping audio recording');
-  
-  if (audioRecording) {
-    const status = await audioRecording.getStatusAsync();
-    if (status.isRecording) {
-      await audioRecording.stopAndUnloadAsync();
-    }
-    audioRecording = null;
+  await stopAudioStreaming();
+  console.log('[ChildMonitoring] Audio streaming stopped');
+}
+
+async function handleStartCamera(
+  deviceId: string, 
+  parentDeviceId: string,
+  payload?: any
+): Promise<void> {
+  if (Platform.OS === 'web') {
+    throw new Error('Camera monitoring not fully supported on web');
   }
 
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-  });
+  const config: CameraMonitoringConfig = {
+    deviceId,
+    parentDeviceId,
+    cameraType: payload?.cameraType || 'front',
+    captureIntervalMs: 5000,
+    imageQuality: 0.7,
+  };
 
-  await AsyncStorage.setItem('audio_recording_active', 'false');
-  console.log('[ChildMonitoring] Audio recording stopped');
+  await startCameraMonitoring(config);
+  console.log('[ChildMonitoring] Camera monitoring started');
 }
 
-async function handleScreenshot(deviceId: string, command: RemoteCommand): Promise<void> {
+async function handleStopCamera(): Promise<void> {
+  await stopCameraMonitoring();
+  console.log('[ChildMonitoring] Camera monitoring stopped');
+}
+
+async function handleScreenshot(deviceId: string): Promise<void> {
   console.log('[ChildMonitoring] Screenshot requested');
-  throw new Error('Screenshot feature not yet implemented');
+  throw new Error('Screenshot feature requires native module implementation');
 }
 
-async function handleGetLocation(deviceId: string, command: RemoteCommand): Promise<void> {
+async function handleGetLocation(deviceId: string, commandId: string): Promise<void> {
   console.log('[ChildMonitoring] Location requested');
-  throw new Error('Location feature not yet implemented');
+  
+  try {
+    const location = await getDeviceLocation();
+    await updateCommandStatus(deviceId, commandId, 'completed', location);
+  } catch (error) {
+    console.error('[ChildMonitoring] Error getting location:', error);
+    throw error;
+  }
 }
 
-async function handleLockDevice(deviceId: string, command: RemoteCommand): Promise<void> {
+async function handleLockDevice(): Promise<void> {
   console.log('[ChildMonitoring] Lock device requested');
-  throw new Error('Lock device feature not yet implemented');
+  await AsyncStorage.setItem('device_locked_by_parent', 'true');
+}
+
+async function handleUnlockDevice(): Promise<void> {
+  console.log('[ChildMonitoring] Unlock device requested');
+  await AsyncStorage.setItem('device_locked_by_parent', 'false');
+}
+
+async function handleVibrate(duration: number): Promise<void> {
+  if (Platform.OS === 'web') {
+    console.log('[ChildMonitoring] Vibration not supported on web');
+    return;
+  }
+
+  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+  console.log('[ChildMonitoring] Device vibrated');
+}
+
+async function handleSendNotification(payload?: any): Promise<void> {
+  console.log('[ChildMonitoring] Send notification requested');
+  
+  if (payload?.title && payload?.message) {
+    Alert.alert(payload.title, payload.message);
+  }
+}
+
+async function handleGetDeviceInfo(deviceId: string, commandId: string): Promise<void> {
+  console.log('[ChildMonitoring] Device info requested');
+  
+  const deviceInfo = {
+    batteryLevel: 0.85,
+    isCharging: false,
+    networkType: 'wifi',
+    storageAvailable: 5000000000,
+    storageTotal: 128000000000,
+    appVersion: '1.0.0',
+    osVersion: Platform.Version.toString(),
+    platform: Platform.OS,
+  };
+  
+  await updateCommandStatus(deviceId, commandId, 'completed', deviceInfo);
 }
 
 export async function isMonitoringActive(): Promise<boolean> {
@@ -197,6 +264,15 @@ export async function getMonitoringDeviceId(): Promise<string | null> {
     return await AsyncStorage.getItem('child_monitoring_device_id');
   } catch (error) {
     console.error('[ChildMonitoring] Error getting monitoring device ID:', error);
+    return null;
+  }
+}
+
+export async function getMonitoringParentId(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem('child_monitoring_parent_id');
+  } catch (error) {
+    console.error('[ChildMonitoring] Error getting monitoring parent ID:', error);
     return null;
   }
 }

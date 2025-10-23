@@ -15,9 +15,11 @@ export interface ConnectedDevice {
 
 export interface MonitoringSettings {
   audioMonitoringEnabled: boolean;
+  cameraMonitoringEnabled: boolean;
   screenMonitoringEnabled: boolean;
   activityLoggingEnabled: boolean;
   remoteControlEnabled: boolean;
+  locationTrackingEnabled: boolean;
   lastMonitoringCheck: number;
 }
 
@@ -62,9 +64,11 @@ const initialState = {
   lastActivityTime: Date.now(),
   monitoringSettings: {
     audioMonitoringEnabled: false,
+    cameraMonitoringEnabled: false,
     screenMonitoringEnabled: false,
     activityLoggingEnabled: false,
     remoteControlEnabled: false,
+    locationTrackingEnabled: false,
     lastMonitoringCheck: Date.now(),
   },
   connectedDevices: [],

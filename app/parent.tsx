@@ -138,6 +138,13 @@ export default function ParentDashboardScreen() {
       `Device: ${device.name}\nStatus: ${device.isOnline ? 'Online' : 'Offline'}\nMonitoring: ${device.monitoringActive ? 'Active' : 'Inactive'}`,
       [
         {
+          text: 'Live Monitoring',
+          onPress: () => {
+            setSelectedDevice(device.id);
+            router.push('/live-monitoring');
+          },
+        },
+        {
           text: 'Start Monitoring',
           onPress: () => handleStartMonitoring(device.id),
         },
