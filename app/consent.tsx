@@ -69,12 +69,12 @@ export default function ConsentScreen() {
         : 'Child mode enabled with parental consent. Monitoring is active for safety.';
       
       Alert.alert(
-        'Setup Complete',
+        'Consent Granted',
         message,
         [
           {
             text: 'Continue',
-            onPress: () => router.replace('/setup'),
+            onPress: () => router.replace('/role-selection'),
           },
         ]
       );

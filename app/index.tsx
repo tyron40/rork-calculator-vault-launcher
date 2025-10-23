@@ -84,6 +84,12 @@ export default function CalculatorScreen() {
       const roleStr = await AsyncStorage.getItem('user_role');
       const userRole = roleStr as UserRole;
       
+      if (!userRole) {
+        console.log('[Calculator] No role set, navigating to role selection');
+        router.push('/role-selection');
+        return true;
+      }
+      
       const parentPin = await AsyncStorage.getItem('parent_pin');
       const childPin = await AsyncStorage.getItem('child_pin');
       
