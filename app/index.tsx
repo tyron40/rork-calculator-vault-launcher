@@ -65,7 +65,20 @@ export default function CalculatorDisguise() {
         
         hapticFeedback();
         
-        router.push('/role-selection');
+        const storedRole = await AsyncStorage.getItem('user_role');
+        console.log('[Calculator] User role:', storedRole);
+        
+        if (storedRole === 'parent') {
+          console.log('[Calculator] Redirecting to parent dashboard');
+          router.push('/parent');
+        } else if (storedRole === 'child') {
+          Alert.alert('Access Denied', 'This device is configured as a child device');
+          setPinBuffer('');
+          return false;
+        } else {
+          console.log('[Calculator] No role found, redirecting to role selection');
+          router.push('/role-selection');
+        }
         
         setPinBuffer('');
         setDisplay('0');
@@ -328,10 +341,15 @@ export default function CalculatorDisguise() {
 
       <TouchableOpacity
         style={styles.exitHint}
-        onPress={() => {
+        onPress={async () => {
+          const role = await AsyncStorage.getItem('user_role');
           Alert.alert(
-            'Calculator',
-            'This is a fully functional calculator. Enter your PIN and press = to access the app.',
+            'Calculator Info',
+            role === 'parent'
+              ? `This is a fully functional calculator.\n\nTo access parent dashboard:\n1. Type your parent PIN\n2. Press = button\n\nYour role: Parent`
+              : role === 'child'
+              ? 'This is a calculator app. Child mode is active.'
+              : 'Enter your PIN and press = to access the app',
             [{ text: 'OK' }]
           );
         }}
