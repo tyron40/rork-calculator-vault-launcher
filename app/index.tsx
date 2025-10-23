@@ -1,17 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useVaultStore, UserRole } from '@/store/vaultStore';
-import { isVaultInitialized } from '@/services/storage';
-import { getInstalledApps } from '@/services/apps';
-import { hasParentalConsent, logActivity } from '@/services/monitoring';
+import { hasParentalConsent } from '@/services/monitoring';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getConnectionConfig } from '@/services/connection';
-import { startChildMonitoring } from '@/services/childMonitoring';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function CalculatorScreen() {
+export default function CalculatorDisguise() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -20,129 +15,74 @@ export default function CalculatorScreen() {
   const [operation, setOperation] = useState<string | null>(null);
   const [waitingForOperand, setWaitingForOperand] = useState<boolean>(false);
   const [pinBuffer, setPinBuffer] = useState<string>('');
-  
-  const { 
-    setLocked, 
-    setCurrentPin, 
-    setInstalledApps,
-    setUserRole,
-  } = useVaultStore();
+  const [accessPin, setAccessPin] = useState<string>('');
 
   const checkInitialization = useCallback(async () => {
     try {
-      console.log('[Calculator] Checking vault initialization');
+      console.log('[Calculator] Checking initial setup');
       
       const hasConsent = await hasParentalConsent();
       if (!hasConsent) {
-        console.log('[Calculator] No parental consent found, redirecting to consent screen');
+        console.log('[Calculator] No parental consent, redirecting to consent screen');
         router.replace('/consent');
         setIsLoading(false);
         return;
       }
       
-      const roleStr = await AsyncStorage.getItem('user_role');
-      const userRole = roleStr as UserRole;
-      if (userRole) {
-        setUserRole(userRole);
-        console.log('[Calculator] User role loaded:', userRole);
+      const pin = await AsyncStorage.getItem('access_pin');
+      if (!pin) {
+        console.log('[Calculator] No access PIN found, need setup');
+        router.replace('/role-selection');
+        setIsLoading(false);
+        return;
       }
       
-      const initialized = await isVaultInitialized();
-      
-      if (!initialized) {
-        console.log('[Calculator] Vault not initialized, redirecting to setup');
-        router.replace('/setup');
-      } else {
-        const apps = await getInstalledApps();
-        setInstalledApps(apps);
-        await logActivity('app_opened', 'Calculator app opened');
-        
-        if (userRole === 'child') {
-          const config = await getConnectionConfig();
-          const parentDeviceId = await AsyncStorage.getItem('parent_device_id');
-          if (config && config.deviceId && parentDeviceId) {
-            await startChildMonitoring(config.deviceId, parentDeviceId);
-            console.log('[Calculator] Child monitoring started');
-          }
-        }
-      }
+      setAccessPin(pin);
+      console.log('[Calculator] Calculator disguise ready');
+      setIsLoading(false);
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
-    } finally {
       setIsLoading(false);
     }
-  }, [router, setInstalledApps, setUserRole]);
+  }, [router]);
 
   useEffect(() => {
     checkInitialization();
   }, [checkInitialization]);
-
-  const checkPinAndRedirect = useCallback(async (pin: string) => {
-    try {
-      console.log('[Calculator] Checking PIN for login...');
-      
-      const initialized = await isVaultInitialized();
-      
-      if (!initialized) {
-        console.log('[Calculator] Vault not initialized yet');
-        return false;
-      }
-      
-      const roleStr = await AsyncStorage.getItem('user_role');
-      const userRole = roleStr as UserRole;
-      
-      if (!userRole) {
-        console.log('[Calculator] No role set, any PIN will take to role selection');
-        router.push('/role-selection');
-        setPinBuffer('');
-        return false;
-      }
-      
-      const parentPin = await AsyncStorage.getItem('parent_pin');
-      const childPin = await AsyncStorage.getItem('child_pin');
-      
-      if (userRole === 'parent') {
-        if (pin === parentPin) {
-          console.log('[Calculator] Parent PIN verified, opening parent dashboard');
-          
-          setCurrentPin(pin);
-          setLocked(false);
-          
-          await logActivity('app_opened', 'Parent dashboard accessed');
-          router.push('/parent');
-          return true;
-        }
-      } else if (userRole === 'child') {
-        if (pin === childPin) {
-          console.log('[Calculator] Child PIN verified');
-          
-          setCurrentPin(pin);
-          setLocked(false);
-          
-          await logActivity('app_opened', 'Child device accessed');
-          
-          Alert.alert(
-            'Device Monitored',
-            'This device is monitored for your safety with parental consent.',
-            [{ text: 'OK' }]
-          );
-          return true;
-        }
-      }
-      
-      console.log('[Calculator] PIN incorrect');
-      return false;
-    } catch (error) {
-      console.error('[Calculator] Error checking PIN:', error);
-      return false;
-    }
-  }, [router, setCurrentPin, setLocked]);
 
   const hapticFeedback = useCallback(() => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, []);
+
+  const checkPinAndRedirect = useCallback(async (pin: string) => {
+    try {
+      console.log('[Calculator] Checking PIN...');
+      
+      if (pin === accessPin) {
+        console.log('[Calculator] Correct PIN! Opening app...');
+        
+        hapticFeedback();
+        
+        router.push('/role-selection');
+        
+        setPinBuffer('');
+        setDisplay('0');
+        setPreviousValue(null);
+        setOperation(null);
+        setWaitingForOperand(false);
+        
+        return true;
+      }
+      
+      console.log('[Calculator] Incorrect PIN');
+      return false;
+    } catch (error) {
+      console.error('[Calculator] Error checking PIN:', error);
+      return false;
+    }
+  }, [accessPin, router, hapticFeedback]);
 
   const handleNumber = useCallback((num: string) => {
     hapticFeedback();

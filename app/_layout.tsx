@@ -15,11 +15,13 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="consent" options={{ headerShown: false }} />
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="role-selection" options={{ headerShown: false }} />
       <Stack.Screen name="setup" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="vault" options={{ headerShown: false }} />
       <Stack.Screen name="parent" options={{ headerShown: false }} />
       <Stack.Screen name="monitoring" options={{ headerShown: false }} />
+      <Stack.Screen name="live-monitoring" options={{ headerShown: false }} />
       <Stack.Screen name="disguise" options={{ headerShown: false }} />
     </Stack>
   );
