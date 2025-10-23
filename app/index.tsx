@@ -81,13 +81,21 @@ export default function CalculatorScreen() {
     try {
       console.log('[Calculator] Checking PIN for login...');
       
+      const initialized = await isVaultInitialized();
+      
+      if (!initialized) {
+        console.log('[Calculator] Vault not initialized yet');
+        return false;
+      }
+      
       const roleStr = await AsyncStorage.getItem('user_role');
       const userRole = roleStr as UserRole;
       
       if (!userRole) {
-        console.log('[Calculator] No role set, navigating to role selection');
+        console.log('[Calculator] No role set, any PIN will take to role selection');
         router.push('/role-selection');
-        return true;
+        setPinBuffer('');
+        return false;
       }
       
       const parentPin = await AsyncStorage.getItem('parent_pin');
@@ -122,6 +130,7 @@ export default function CalculatorScreen() {
         }
       }
       
+      console.log('[Calculator] PIN incorrect');
       return false;
     } catch (error) {
       console.error('[Calculator] Error checking PIN:', error);
