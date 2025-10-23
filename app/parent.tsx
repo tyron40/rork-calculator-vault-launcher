@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Switch, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -27,6 +27,8 @@ export default function ParentDashboardScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'devices' | 'connect' | 'settings'>('devices');
   const [pairingCode, setPairingCode] = useState<string>('');
+  const [generatedCode, setGeneratedCode] = useState<string>('');
+  const [isGeneratingCode, setIsGeneratingCode] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
@@ -84,6 +86,27 @@ export default function ParentDashboardScreen() {
       ]
     );
   };
+
+  const handleGenerateCode = useCallback(async () => {
+    setIsGeneratingCode(true);
+    try {
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      setGeneratedCode(code);
+      
+      console.log('[ParentDashboard] Generated pairing code:', code);
+      
+      setTimeout(() => {
+        setGeneratedCode('');
+        Alert.alert('Code Expired', 'The pairing code has expired. Generate a new one to pair.');
+      }, 300000);
+      
+    } catch (error) {
+      console.error('[ParentDashboard] Error generating code:', error);
+      Alert.alert('Error', 'Failed to generate pairing code');
+    } finally {
+      setIsGeneratingCode(false);
+    }
+  }, []);
 
   const handlePairDevice = async () => {
     if (!pairingCode.trim()) {
@@ -354,11 +377,56 @@ export default function ParentDashboardScreen() {
           <View style={styles.connectTab}>
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
-                <QrCode size={32} color="#3b82f6" />
-                <Text style={styles.sectionTitle}>Pair Child Device</Text>
+                <QrCode size={32} color="#8b5cf6" />
+                <Text style={styles.sectionTitle}>Generate Pairing Code</Text>
               </View>
               <Text style={styles.sectionDescription}>
-                Enter the 6-character pairing code displayed on the child device
+                Generate a code that the child device can use to connect
+              </Text>
+
+              {generatedCode ? (
+                <View style={styles.codeDisplayContainer}>
+                  <Text style={styles.codeDisplayLabel}>Share this code with child device</Text>
+                  <View style={styles.codeDisplay}>
+                    <Text style={styles.codeDisplayText}>{generatedCode}</Text>
+                  </View>
+                  <Text style={styles.codeExpiry}>
+                    ⏱️ Code expires in 5 minutes
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={() => setGeneratedCode('')}
+                  >
+                    <Text style={styles.secondaryButtonText}>Generate New Code</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.primaryButton, isGeneratingCode && styles.primaryButtonDisabled]}
+                  onPress={handleGenerateCode}
+                  disabled={isGeneratingCode}
+                >
+                  <QrCode size={20} color="#ffffff" />
+                  <Text style={styles.primaryButtonText}>
+                    {isGeneratingCode ? 'Generating...' : 'Generate Code'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Plus size={32} color="#3b82f6" />
+                <Text style={styles.sectionTitle}>Enter Child Code</Text>
+              </View>
+              <Text style={styles.sectionDescription}>
+                Enter the 6-character pairing code from the child device
               </Text>
 
               <View style={styles.codeInputContainer}>
@@ -378,6 +446,7 @@ export default function ParentDashboardScreen() {
                 onPress={handlePairDevice}
                 disabled={isLoading}
               >
+                <Plus size={20} color="#ffffff" />
                 <Text style={styles.primaryButtonText}>
                   {isLoading ? 'Pairing...' : 'Pair Device'}
                 </Text>
@@ -385,13 +454,16 @@ export default function ParentDashboardScreen() {
             </View>
 
             <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>💡 How to Connect</Text>
+              <Text style={styles.infoTitle}>💡 Two Ways to Connect</Text>
               <Text style={styles.infoText}>
-                1. Open the app on child device{'\n'}
-                2. Complete setup and grant consent{'\n'}
-                3. Copy the pairing code shown{'\n'}
-                4. Enter the code here to connect{'\n'}
-                5. Start monitoring from device list
+                <Text style={{ fontWeight: '700' as const }}>Option 1: Generate Code Here{'\n'}</Text>
+                • Generate a pairing code on this device{'\n'}
+                • Child enters the code to connect{'\n'}
+                • Automatic pairing{'\n'}{'\n'}
+                <Text style={{ fontWeight: '700' as const }}>Option 2: Enter Child Code{'\n'}</Text>
+                • Child generates code on their device{'\n'}
+                • Enter that code here to pair{'\n'}
+                • Start monitoring immediately
               </Text>
             </View>
           </View>
@@ -670,6 +742,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#93c5fd',
     lineHeight: 20,
+  },
+  codeDisplayContainer: {
+    alignItems: 'center',
+  },
+  codeDisplayLabel: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginBottom: 12,
+  },
+  codeDisplay: {
+    backgroundColor: '#1a1d29',
+    borderRadius: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 32,
+    borderWidth: 2,
+    borderColor: '#8b5cf6',
+    marginBottom: 12,
+  },
+  codeDisplayText: {
+    fontSize: 36,
+    fontWeight: '700' as const,
+    color: '#8b5cf6',
+    letterSpacing: 8,
+  },
+  codeExpiry: {
+    fontSize: 13,
+    color: '#f59e0b',
+    marginBottom: 16,
+  },
+  secondaryButton: {
+    backgroundColor: '#2d3142',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderWidth: 2,
+    borderColor: '#8b5cf6',
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#8b5cf6',
+    textAlign: 'center',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#3f4453',
+  },
+  dividerText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginHorizontal: 16,
+    fontWeight: '600' as const,
   },
   settingsTab: {
     gap: 16,

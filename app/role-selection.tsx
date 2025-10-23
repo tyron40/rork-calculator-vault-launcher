@@ -94,12 +94,12 @@ export default function RoleSelectionScreen() {
       await AsyncStorage.setItem('user_role', selectedRole);
       setStoreUserRole(selectedRole);
       
-      console.log('[RoleSelection] Login successful, redirecting to', selectedRole === 'parent' ? 'parent dashboard' : 'calculator');
+      console.log('[RoleSelection] Login successful, redirecting to', selectedRole === 'parent' ? 'parent dashboard' : 'child dashboard');
       
       if (selectedRole === 'parent') {
         router.replace('/parent');
       } else {
-        router.replace('/');
+        router.replace('/child');
       }
     } catch (error) {
       console.error('[RoleSelection] Error during login:', error);
