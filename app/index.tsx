@@ -68,23 +68,22 @@ export default function CalculatorDisguise() {
         const storedRole = await AsyncStorage.getItem('user_role');
         console.log('[Calculator] User role:', storedRole);
         
-        if (storedRole === 'parent') {
-          console.log('[Calculator] Redirecting to parent dashboard');
-          router.push('/parent');
-        } else if (storedRole === 'child') {
-          Alert.alert('Access Denied', 'This device is configured as a child device');
-          setPinBuffer('');
-          return false;
-        } else {
-          console.log('[Calculator] No role found, redirecting to role selection');
-          router.push('/role-selection');
-        }
-        
         setPinBuffer('');
         setDisplay('0');
         setPreviousValue(null);
         setOperation(null);
         setWaitingForOperand(false);
+        
+        if (storedRole === 'parent') {
+          console.log('[Calculator] Redirecting to parent dashboard');
+          router.replace('/parent');
+        } else if (storedRole === 'child') {
+          console.log('[Calculator] Redirecting to child dashboard');
+          router.replace('/child');
+        } else {
+          console.log('[Calculator] No role found, redirecting to role selection');
+          router.replace('/role-selection');
+        }
         
         return true;
       }
