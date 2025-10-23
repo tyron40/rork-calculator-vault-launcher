@@ -76,14 +76,9 @@ export default function ParentDashboardScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Switch',
-          onPress: async () => {
-            try {
-              console.log('[ParentDashboard] Switching to calculator disguise');
-              await AsyncStorage.setItem('calculator_disguise_mode', 'true');
-              router.replace('/disguise');
-            } catch (error) {
-              console.error('[ParentDashboard] Error entering disguise mode:', error);
-            }
+          onPress: () => {
+            console.log('[ParentDashboard] Switching to calculator disguise');
+            router.replace('/');
           },
         },
       ]
