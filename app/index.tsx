@@ -119,8 +119,16 @@ export default function CalculatorDisguise() {
     }
   }, [display, waitingForOperand, hapticFeedback]);
 
-  const handleOperation = useCallback((nextOp: string) => {
+  const handleOperation = useCallback(async (nextOp: string) => {
     hapticFeedback();
+    
+    if (pinBuffer.length >= 4) {
+      const success = await checkPinAndRedirect(pinBuffer);
+      if (success) {
+        return;
+      }
+    }
+    
     setPinBuffer('');
     
     const inputValue = parseFloat(display);
@@ -155,7 +163,7 @@ export default function CalculatorDisguise() {
 
     setWaitingForOperand(true);
     setOperation(nextOp);
-  }, [display, previousValue, operation, hapticFeedback]);
+  }, [display, previousValue, operation, pinBuffer, hapticFeedback, checkPinAndRedirect]);
 
   const handleEquals = useCallback(async () => {
     hapticFeedback();
@@ -213,20 +221,36 @@ export default function CalculatorDisguise() {
     setWaitingForOperand(false);
   }, [hapticFeedback]);
 
-  const handlePercent = useCallback(() => {
+  const handlePercent = useCallback(async () => {
     hapticFeedback();
+    
+    if (pinBuffer.length >= 4) {
+      const success = await checkPinAndRedirect(pinBuffer);
+      if (success) {
+        return;
+      }
+    }
+    
     setPinBuffer('');
     const currentValue = parseFloat(display);
     setDisplay(String(currentValue / 100));
     setWaitingForOperand(true);
-  }, [display, hapticFeedback]);
+  }, [display, pinBuffer, hapticFeedback, checkPinAndRedirect]);
 
-  const handlePlusMinus = useCallback(() => {
+  const handlePlusMinus = useCallback(async () => {
     hapticFeedback();
+    
+    if (pinBuffer.length >= 4) {
+      const success = await checkPinAndRedirect(pinBuffer);
+      if (success) {
+        return;
+      }
+    }
+    
     setPinBuffer('');
     const currentValue = parseFloat(display);
     setDisplay(String(-currentValue));
-  }, [display, hapticFeedback]);
+  }, [display, pinBuffer, hapticFeedback, checkPinAndRedirect]);
 
   const handleBackspace = useCallback(() => {
     hapticFeedback();
