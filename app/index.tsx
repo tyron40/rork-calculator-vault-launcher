@@ -61,16 +61,16 @@ export default function CalculatorDisguise() {
     try {
       console.log('[Calculator] Checking PIN, entered:', pin, 'expected:', accessPin);
       
-      if (pin === accessPin) {
+      const storedRole = await AsyncStorage.getItem('user_role');
+      const parentPin = await AsyncStorage.getItem('parent_pin');
+      const childPin = await AsyncStorage.getItem('child_pin');
+      
+      console.log('[Calculator] User role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
+      
+      if (pin === accessPin || (pin === '0000' && !parentPin && !childPin)) {
         console.log('[Calculator] Correct PIN! Opening app...');
         
         hapticFeedback();
-        
-        const storedRole = await AsyncStorage.getItem('user_role');
-        const parentPin = await AsyncStorage.getItem('parent_pin');
-        const childPin = await AsyncStorage.getItem('child_pin');
-        
-        console.log('[Calculator] User role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
         
         setPinBuffer('');
         setDisplay('0');
