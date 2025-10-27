@@ -53,14 +53,21 @@ export default function RoleSelectionScreen() {
       
       if (selectedRole === 'parent') {
         await AsyncStorage.setItem('parent_pin', loginPin);
+        console.log('[RoleSelection] Parent PIN saved');
       } else {
         await AsyncStorage.setItem('child_pin', loginPin);
+        console.log('[RoleSelection] Child PIN saved');
       }
       
       setStoreUserRole(selectedRole);
       
-      console.log('[RoleSelection] Setup complete, redirecting to setup screen');
-      router.replace('/setup');
+      console.log('[RoleSelection] Setup complete, redirecting to', selectedRole === 'parent' ? 'parent dashboard' : 'child dashboard');
+      
+      if (selectedRole === 'parent') {
+        router.replace('/parent');
+      } else {
+        router.replace('/child');
+      }
     } catch (error) {
       console.error('[RoleSelection] Error during setup:', error);
       Alert.alert('Setup Failed', 'Failed to configure device. Please try again.');

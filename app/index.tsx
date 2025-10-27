@@ -28,12 +28,14 @@ export default function CalculatorDisguise() {
         return;
       }
       
+      const userRole = await AsyncStorage.getItem('user_role');
       const pin = await AsyncStorage.getItem('access_pin');
-      if (!pin) {
-        console.log('[Calculator] No access PIN found, using default PIN: 0000');
+      
+      if (!pin || !userRole) {
+        console.log('[Calculator] No access PIN or role found, using default PIN: 0000');
         setAccessPin('0000');
       } else {
-        console.log('[Calculator] Access PIN loaded from storage');
+        console.log('[Calculator] Access PIN loaded from storage:', pin ? 'PIN exists' : 'No PIN');
         setAccessPin(pin);
       }
       
@@ -57,7 +59,7 @@ export default function CalculatorDisguise() {
 
   const checkPinAndRedirect = useCallback(async (pin: string) => {
     try {
-      console.log('[Calculator] Checking PIN...');
+      console.log('[Calculator] Checking PIN, entered:', pin, 'expected:', accessPin);
       
       if (pin === accessPin) {
         console.log('[Calculator] Correct PIN! Opening app...');
@@ -65,7 +67,10 @@ export default function CalculatorDisguise() {
         hapticFeedback();
         
         const storedRole = await AsyncStorage.getItem('user_role');
-        console.log('[Calculator] User role:', storedRole);
+        const parentPin = await AsyncStorage.getItem('parent_pin');
+        const childPin = await AsyncStorage.getItem('child_pin');
+        
+        console.log('[Calculator] User role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
         
         setPinBuffer('');
         setDisplay('0');
@@ -73,14 +78,14 @@ export default function CalculatorDisguise() {
         setOperation(null);
         setWaitingForOperand(false);
         
-        if (storedRole === 'parent') {
+        if (storedRole === 'parent' && parentPin) {
           console.log('[Calculator] Redirecting to parent dashboard');
           router.replace('/parent');
-        } else if (storedRole === 'child') {
+        } else if (storedRole === 'child' && childPin) {
           console.log('[Calculator] Redirecting to child dashboard');
           router.replace('/child');
         } else {
-          console.log('[Calculator] No role found, redirecting to role selection');
+          console.log('[Calculator] No configured role, redirecting to role selection');
           router.replace('/role-selection');
         }
         
@@ -88,6 +93,7 @@ export default function CalculatorDisguise() {
       }
       
       console.log('[Calculator] Incorrect PIN');
+      Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect');
       return false;
     } catch (error) {
       console.error('[Calculator] Error checking PIN:', error);
