@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,7 +30,7 @@ export default function CalculatorDisguise() {
       
       const pin = await AsyncStorage.getItem('access_pin');
       if (!pin) {
-        console.log('[Calculator] No access PIN found, need setup');
+        console.log('[Calculator] No access PIN found, redirecting to role selection');
         router.replace('/role-selection');
         setIsLoading(false);
         return;
@@ -164,7 +163,6 @@ export default function CalculatorDisguise() {
     if (pinBuffer.length >= 4) {
       const success = await checkPinAndRedirect(pinBuffer);
       if (success) {
-        setPinBuffer('');
         return;
       }
     }
@@ -233,12 +231,16 @@ export default function CalculatorDisguise() {
   const handleBackspace = useCallback(() => {
     hapticFeedback();
     
+    if (pinBuffer.length > 0) {
+      setPinBuffer((prev) => prev.slice(0, -1));
+    }
+    
     if (display.length > 1) {
       setDisplay((prev) => prev.slice(0, -1));
     } else {
       setDisplay('0');
     }
-  }, [display, hapticFeedback]);
+  }, [display, pinBuffer, hapticFeedback]);
 
   const Button = ({ 
     value, 
@@ -347,7 +349,7 @@ export default function CalculatorDisguise() {
             role === 'parent'
               ? `This is a fully functional calculator.\n\nTo access parent dashboard:\n1. Type your parent PIN\n2. Press = button\n\nYour role: Parent`
               : role === 'child'
-              ? 'This is a calculator app. Child mode is active.'
+              ? `This is a fully functional calculator.\n\nTo access child dashboard:\n1. Type your child PIN\n2. Press = button\n\nYour role: Child`
               : 'Enter your PIN and press = to access the app',
             [{ text: 'OK' }]
           );

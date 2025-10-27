@@ -4,6 +4,7 @@ import { generateCodeProcedure } from "./routes/pairing/generateCode/route";
 import { verifyCodeProcedure } from "./routes/pairing/verifyCode/route";
 import { getPairedDevicesProcedure } from "./routes/pairing/getPairedDevices/route";
 import { unpairDeviceProcedure } from "./routes/pairing/unpairDevice/route";
+import { pairDeviceProcedure, storePairingCodeProcedure } from "./routes/pairing/pair/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -14,6 +15,8 @@ export const appRouter = createTRPCRouter({
     verifyCode: verifyCodeProcedure,
     getPairedDevices: getPairedDevicesProcedure,
     unpairDevice: unpairDeviceProcedure,
+    pairDevice: pairDeviceProcedure,
+    storePairingCode: storePairingCodeProcedure,
   }),
 });
 

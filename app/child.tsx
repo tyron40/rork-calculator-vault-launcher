@@ -14,6 +14,7 @@ import {
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { trpc } from '@/lib/trpc';
 
 export default function ChildDashboardScreen() {
   const router = useRouter();
@@ -110,10 +111,15 @@ export default function ChildDashboardScreen() {
     setIsGeneratingCode(true);
     try {
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      setPairingCode(code);
+      const deviceId = await AsyncStorage.getItem('device_id') || `child_${Date.now()}`;
+      const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
+      const childName = consentData.childName || 'Child Device';
       
+      await AsyncStorage.setItem('device_id', deviceId);
       await AsyncStorage.setItem('child_pairing_code', code);
       await AsyncStorage.setItem('child_pairing_code_timestamp', Date.now().toString());
+      
+      setPairingCode(code);
       
       console.log('[ChildDashboard] Generated pairing code:', code);
       
