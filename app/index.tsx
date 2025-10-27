@@ -30,14 +30,14 @@ export default function CalculatorDisguise() {
       
       const pin = await AsyncStorage.getItem('access_pin');
       if (!pin) {
-        console.log('[Calculator] No access PIN found, redirecting to role selection');
-        router.replace('/role-selection');
-        setIsLoading(false);
-        return;
+        console.log('[Calculator] No access PIN found, using default PIN: 0000');
+        setAccessPin('0000');
+      } else {
+        console.log('[Calculator] Access PIN loaded from storage');
+        setAccessPin(pin);
       }
       
-      setAccessPin(pin);
-      console.log('[Calculator] Calculator disguise ready with PIN');
+      console.log('[Calculator] Calculator disguise ready');
       setIsLoading(false);
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
