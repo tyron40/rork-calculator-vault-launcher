@@ -78,7 +78,17 @@ export default function CalculatorDisguise() {
       console.log('[Calculator] User role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin, 'Stored access PIN exists:', !!storedAccessPin);
       
       const isDefaultPinEntry = pin === '0000' && !storedAccessPin;
-      const isPinCorrect = pin === accessPin;
+      const isPinCorrect = pin === accessPin || pin === storedAccessPin || pin === parentPin || pin === childPin;
+      
+      console.log('[Calculator] PIN comparison:', {
+        enteredPin: pin,
+        accessPin,
+        storedAccessPin,
+        parentPin: parentPin ? '****' : null,
+        childPin: childPin ? '****' : null,
+        isDefaultPinEntry,
+        isPinCorrect
+      });
       
       if (isPinCorrect || isDefaultPinEntry) {
         console.log('[Calculator] PIN accepted! Type:', isDefaultPinEntry ? 'first-time setup' : 'authenticated');
