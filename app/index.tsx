@@ -33,9 +33,10 @@ export default function CalculatorDisguise() {
       
       if (!pin || !userRole) {
         console.log('[Calculator] No access PIN or role found, using default PIN: 0000');
+        console.log('[Calculator] To set up: Type 0000 and press = on calculator');
         setAccessPin('0000');
       } else {
-        console.log('[Calculator] Access PIN loaded from storage:', pin ? 'PIN exists' : 'No PIN');
+        console.log('[Calculator] Access PIN loaded from storage');
         setAccessPin(pin);
       }
       
@@ -67,8 +68,11 @@ export default function CalculatorDisguise() {
       
       console.log('[Calculator] User role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
       
-      if (pin === accessPin || (pin === '0000' && !parentPin && !childPin)) {
-        console.log('[Calculator] Correct PIN! Opening app...');
+      const isDefaultPinEntry = pin === '0000' && !parentPin && !childPin;
+      const isPinCorrect = pin === accessPin;
+      
+      if (isPinCorrect || isDefaultPinEntry) {
+        console.log('[Calculator] PIN accepted! Type:', isDefaultPinEntry ? 'first-time setup' : 'authenticated');
         
         hapticFeedback();
         
@@ -78,7 +82,10 @@ export default function CalculatorDisguise() {
         setOperation(null);
         setWaitingForOperand(false);
         
-        if (storedRole === 'parent' && parentPin) {
+        if (isDefaultPinEntry) {
+          console.log('[Calculator] First time setup - redirecting to role selection');
+          router.replace('/role-selection');
+        } else if (storedRole === 'parent' && parentPin) {
           console.log('[Calculator] Redirecting to parent dashboard');
           router.replace('/parent');
         } else if (storedRole === 'child' && childPin) {
