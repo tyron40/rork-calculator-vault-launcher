@@ -41,6 +41,7 @@ export default function ChildDashboardScreen() {
     const initializeChild = async () => {
       try {
         const role = await AsyncStorage.getItem('user_role');
+        const childPin = await AsyncStorage.getItem('child_pin');
         
         if (role !== 'child') {
           console.log('[ChildDashboard] Invalid access, redirecting');
@@ -48,11 +49,15 @@ export default function ChildDashboardScreen() {
           return;
         }
         
-        const pin = '0000';
-        await AsyncStorage.setItem('child_pin', pin);
-        setCurrentPin(pin);
+        if (!childPin) {
+          console.log('[ChildDashboard] No child PIN found, redirecting to role selection');
+          router.replace('/role-selection');
+          return;
+        }
+        
+        setCurrentPin(childPin);
         setStoreUserRole('child');
-        console.log('[ChildDashboard] Initialized successfully with PIN: 0000');
+        console.log('[ChildDashboard] Initialized successfully');
       } catch (error) {
         console.error('[ChildDashboard] Error initializing:', error);
         router.replace('/');

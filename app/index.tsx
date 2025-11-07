@@ -14,17 +14,12 @@ export default function CalculatorDisguise() {
   const [operation, setOperation] = useState<string | null>(null);
   const [waitingForOperand, setWaitingForOperand] = useState<boolean>(false);
   const [pinBuffer, setPinBuffer] = useState<string>('');
-  const [accessPin, setAccessPin] = useState<string>('');
 
   const checkInitialization = useCallback(async () => {
     try {
       console.log('[Calculator] Checking initial setup');
       
-      const [consent, userRole, pin] = await Promise.all([
-        AsyncStorage.getItem('parental_consent'),
-        AsyncStorage.getItem('user_role'),
-        AsyncStorage.getItem('access_pin')
-      ]);
+      const consent = await AsyncStorage.getItem('parental_consent');
       
       if (!consent) {
         console.log('[Calculator] No parental consent, redirecting to consent screen');
@@ -32,16 +27,8 @@ export default function CalculatorDisguise() {
         return;
       }
       
-      if (!pin || !userRole) {
-        console.log('[Calculator] No access PIN or role found, using default PIN: 0000');
-        console.log('[Calculator] To set up: Type 0000 and press = on calculator');
-        setAccessPin('0000');
-      } else {
-        console.log('[Calculator] Access PIN loaded from storage');
-        setAccessPin(pin);
-      }
-      
       console.log('[Calculator] Calculator disguise ready');
+      console.log('[Calculator] To access: Type your PIN and press =');
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
     } finally {
@@ -68,64 +55,72 @@ export default function CalculatorDisguise() {
 
   const checkPinAndRedirect = useCallback(async (pin: string) => {
     try {
-      console.log('[Calculator] Checking PIN, entered:', pin, 'expected:', accessPin);
+      console.log('[Calculator] Checking PIN:', pin);
       
       const storedRole = await AsyncStorage.getItem('user_role');
       const parentPin = await AsyncStorage.getItem('parent_pin');
       const childPin = await AsyncStorage.getItem('child_pin');
-      const storedAccessPin = await AsyncStorage.getItem('access_pin');
       
-      console.log('[Calculator] User role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin, 'Stored access PIN exists:', !!storedAccessPin);
+      console.log('[Calculator] Stored data - Role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
       
-      const isDefaultPinEntry = pin === '0000' && !storedAccessPin;
-      const isPinCorrect = pin === accessPin || pin === storedAccessPin || pin === parentPin || pin === childPin;
+      const hasNoSetup = !parentPin && !childPin && !storedRole;
       
-      console.log('[Calculator] PIN comparison:', {
-        enteredPin: pin,
-        accessPin,
-        storedAccessPin,
-        parentPin: parentPin ? '****' : null,
-        childPin: childPin ? '****' : null,
-        isDefaultPinEntry,
-        isPinCorrect
-      });
-      
-      if (isPinCorrect || isDefaultPinEntry) {
-        console.log('[Calculator] PIN accepted! Type:', isDefaultPinEntry ? 'first-time setup' : 'authenticated');
-        
+      if (hasNoSetup) {
+        console.log('[Calculator] No setup found, redirecting to role selection');
         hapticFeedback();
-        
         setPinBuffer('');
         setDisplay('0');
         setPreviousValue(null);
         setOperation(null);
         setWaitingForOperand(false);
-        
-        if (isDefaultPinEntry) {
-          console.log('[Calculator] First time setup - redirecting to role selection');
-          router.replace('/role-selection');
-        } else if (storedRole === 'parent' && parentPin) {
-          console.log('[Calculator] Redirecting to parent dashboard');
-          router.replace('/parent');
-        } else if (storedRole === 'child' && childPin) {
-          console.log('[Calculator] Redirecting to child dashboard');
-          router.replace('/child');
-        } else {
-          console.log('[Calculator] No configured role, redirecting to role selection');
-          router.replace('/role-selection');
-        }
-        
+        router.replace('/role-selection');
+        return true;
+      }
+      
+      let isCorrectPin = false;
+      let redirectTo = '/role-selection';
+      
+      if (storedRole === 'parent' && parentPin === pin) {
+        console.log('[Calculator] Parent PIN matched');
+        isCorrectPin = true;
+        redirectTo = '/parent';
+      } else if (storedRole === 'child' && childPin === pin) {
+        console.log('[Calculator] Child PIN matched');
+        isCorrectPin = true;
+        redirectTo = '/child';
+      } else if (parentPin === pin) {
+        console.log('[Calculator] Parent PIN matched (no active role)');
+        isCorrectPin = true;
+        await AsyncStorage.setItem('user_role', 'parent');
+        redirectTo = '/parent';
+      } else if (childPin === pin) {
+        console.log('[Calculator] Child PIN matched (no active role)');
+        isCorrectPin = true;
+        await AsyncStorage.setItem('user_role', 'child');
+        redirectTo = '/child';
+      }
+      
+      if (isCorrectPin) {
+        console.log('[Calculator] PIN accepted! Redirecting to:', redirectTo);
+        hapticFeedback();
+        setPinBuffer('');
+        setDisplay('0');
+        setPreviousValue(null);
+        setOperation(null);
+        setWaitingForOperand(false);
+        router.replace(redirectTo);
         return true;
       }
       
       console.log('[Calculator] Incorrect PIN');
-      Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect');
+      setPinBuffer('');
+      Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect. Please try again.');
       return false;
     } catch (error) {
       console.error('[Calculator] Error checking PIN:', error);
       return false;
     }
-  }, [accessPin, router, hapticFeedback]);
+  }, [router, hapticFeedback]);
 
   const handleNumber = useCallback((num: string) => {
     hapticFeedback();
