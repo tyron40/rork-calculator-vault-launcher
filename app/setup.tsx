@@ -104,9 +104,10 @@ export default function SetupScreen() {
         
         router.replace('/onboarding');
       } else {
-        await initializeVault(childPin);
-        await AsyncStorage.setItem('child_pin', childPin);
-        await AsyncStorage.setItem('access_pin', childPin);
+        const defaultChildPin = '0000';
+        await initializeVault(defaultChildPin);
+        await AsyncStorage.setItem('child_pin', defaultChildPin);
+        await AsyncStorage.setItem('access_pin', defaultChildPin);
         
         const code = await generatePairingCode();
         const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
@@ -115,14 +116,14 @@ export default function SetupScreen() {
         await saveConnectionConfig({
           userRole: 'child',
           parentPin: null,
-          childPin,
+          childPin: defaultChildPin,
           deviceId,
           deviceName,
         });
 
         console.log('[Setup] Child vault initialized with pairing code:', code);
         
-        setCurrentPin(childPin);
+        setCurrentPin(defaultChildPin);
         setLocked(false);
         setStoreUserRole('child');
         

@@ -40,18 +40,19 @@ export default function ChildDashboardScreen() {
   useEffect(() => {
     const initializeChild = async () => {
       try {
-        const pin = await AsyncStorage.getItem('child_pin');
         const role = await AsyncStorage.getItem('user_role');
         
-        if (!pin || role !== 'child') {
+        if (role !== 'child') {
           console.log('[ChildDashboard] Invalid access, redirecting');
           router.replace('/');
           return;
         }
         
+        const pin = '0000';
+        await AsyncStorage.setItem('child_pin', pin);
         setCurrentPin(pin);
         setStoreUserRole('child');
-        console.log('[ChildDashboard] Initialized successfully');
+        console.log('[ChildDashboard] Initialized successfully with PIN: 0000');
       } catch (error) {
         console.error('[ChildDashboard] Error initializing:', error);
         router.replace('/');
