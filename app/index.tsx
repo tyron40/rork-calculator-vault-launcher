@@ -65,10 +65,11 @@ export default function CalculatorDisguise() {
       const storedRole = await AsyncStorage.getItem('user_role');
       const parentPin = await AsyncStorage.getItem('parent_pin');
       const childPin = await AsyncStorage.getItem('child_pin');
+      const storedAccessPin = await AsyncStorage.getItem('access_pin');
       
-      console.log('[Calculator] User role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
+      console.log('[Calculator] User role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin, 'Stored access PIN exists:', !!storedAccessPin);
       
-      const isDefaultPinEntry = pin === '0000' && !parentPin && !childPin;
+      const isDefaultPinEntry = pin === '0000' && !storedAccessPin;
       const isPinCorrect = pin === accessPin;
       
       if (isPinCorrect || isDefaultPinEntry) {
