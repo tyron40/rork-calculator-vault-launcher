@@ -20,16 +20,17 @@ export default function CalculatorDisguise() {
     try {
       console.log('[Calculator] Checking initial setup');
       
-      const consent = await AsyncStorage.getItem('parental_consent');
+      const [consent, userRole, pin] = await Promise.all([
+        AsyncStorage.getItem('parental_consent'),
+        AsyncStorage.getItem('user_role'),
+        AsyncStorage.getItem('access_pin')
+      ]);
+      
       if (!consent) {
         console.log('[Calculator] No parental consent, redirecting to consent screen');
         router.replace('/consent');
-        setIsLoading(false);
         return;
       }
-      
-      const userRole = await AsyncStorage.getItem('user_role');
-      const pin = await AsyncStorage.getItem('access_pin');
       
       if (!pin || !userRole) {
         console.log('[Calculator] No access PIN or role found, using default PIN: 0000');
@@ -41,15 +42,22 @@ export default function CalculatorDisguise() {
       }
       
       console.log('[Calculator] Calculator disguise ready');
-      setIsLoading(false);
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
+    } finally {
       setIsLoading(false);
     }
   }, [router]);
 
   useEffect(() => {
-    checkInitialization();
+    const timeout = setTimeout(() => {
+      console.log('[Calculator] Initialization timeout, setting loading to false');
+      setIsLoading(false);
+    }, 3000);
+    
+    checkInitialization().finally(() => clearTimeout(timeout));
+    
+    return () => clearTimeout(timeout);
   }, [checkInitialization]);
 
   const hapticFeedback = useCallback(() => {
