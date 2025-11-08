@@ -40,7 +40,7 @@ export default function CalculatorDisguise() {
     const timeout = setTimeout(() => {
       console.log('[Calculator] Initialization timeout, setting loading to false');
       setIsLoading(false);
-    }, 3000);
+    }, 5000);
     
     checkInitialization().finally(() => clearTimeout(timeout));
     
@@ -463,6 +463,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: 60,
   },
   wideButton: {
     flex: 2,

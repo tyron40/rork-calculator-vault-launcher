@@ -228,6 +228,8 @@ export default function RoleSelectionScreen() {
             secureTextEntry
             keyboardType="number-pad"
             maxLength={8}
+            inputMode="numeric"
+            autoComplete="off"
           />
         </View>
 
