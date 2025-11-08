@@ -40,7 +40,9 @@ export default function RoleSelectionScreen() {
       return;
     }
 
-    if (!loginPin || loginPin.length < 4) {
+    const pinToUse = selectedRole === 'child' && !loginPin ? '0000' : loginPin;
+
+    if (!pinToUse || pinToUse.length < 4) {
       Alert.alert('Invalid PIN', 'Please enter a PIN with at least 4 digits');
       return;
     }
@@ -48,15 +50,15 @@ export default function RoleSelectionScreen() {
     try {
       console.log('[RoleSelection] Setting up device with role:', selectedRole);
       
-      await AsyncStorage.setItem('access_pin', loginPin);
+      await AsyncStorage.setItem('access_pin', pinToUse);
       await AsyncStorage.setItem('user_role', selectedRole);
       
       if (selectedRole === 'parent') {
-        await AsyncStorage.setItem('parent_pin', loginPin);
+        await AsyncStorage.setItem('parent_pin', pinToUse);
         console.log('[RoleSelection] Parent PIN saved');
       } else {
-        await AsyncStorage.setItem('child_pin', loginPin);
-        console.log('[RoleSelection] Child PIN saved');
+        await AsyncStorage.setItem('child_pin', pinToUse);
+        console.log('[RoleSelection] Child PIN saved as:', pinToUse);
       }
       
       setStoreUserRole(selectedRole);
@@ -219,11 +221,16 @@ export default function RoleSelectionScreen() {
           <Text style={styles.pinLabel}>
             {isSettingUp ? 'Create PIN' : 'Enter PIN'}
           </Text>
+          {isSettingUp && selectedRole === 'child' && (
+            <Text style={styles.pinHint}>
+              Default child PIN: 0000 (or enter your own)
+            </Text>
+          )}
           <TextInput
             style={styles.pinInput}
             value={loginPin}
             onChangeText={setLoginPin}
-            placeholder="Enter 4+ digit PIN"
+            placeholder={selectedRole === 'child' && isSettingUp ? "0000 (default)" : "Enter 4+ digit PIN"}
             placeholderTextColor="#6b7280"
             secureTextEntry
             keyboardType="number-pad"
@@ -236,10 +243,10 @@ export default function RoleSelectionScreen() {
         <TouchableOpacity
           style={[
             styles.loginButton,
-            (!selectedRole || !loginPin || loginPin.length < 4) && styles.loginButtonDisabled,
+            (!selectedRole || (!loginPin && selectedRole === 'parent') || (!!loginPin && loginPin.length < 4)) && styles.loginButtonDisabled,
           ]}
           onPress={isSettingUp ? handleSetup : handleLogin}
-          disabled={!selectedRole || !loginPin || loginPin.length < 4}
+          disabled={!selectedRole || (!loginPin && selectedRole === 'parent') || (!!loginPin && loginPin.length < 4)}
           activeOpacity={0.8}
         >
           <Text style={styles.loginButtonText}>
@@ -438,5 +445,11 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     lineHeight: 20,
     textAlign: 'center',
+  },
+  pinHint: {
+    fontSize: 13,
+    color: '#10b981',
+    marginBottom: 8,
+    fontWeight: '600' as const,
   },
 });
