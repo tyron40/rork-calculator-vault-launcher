@@ -40,7 +40,7 @@ export default function RoleSelectionScreen() {
       return;
     }
 
-    const pinToUse = selectedRole === 'child' && !loginPin ? '0000' : loginPin;
+    const pinToUse = (selectedRole === 'child' && !loginPin ? '0000' : loginPin).trim();
 
     if (!pinToUse || pinToUse.length < 4) {
       Alert.alert('Invalid PIN', 'Please enter a PIN with at least 4 digits');
@@ -55,10 +55,10 @@ export default function RoleSelectionScreen() {
       
       if (selectedRole === 'parent') {
         await AsyncStorage.setItem('parent_pin', pinToUse);
-        console.log('[RoleSelection] Parent PIN saved');
+        console.log('[RoleSelection] Parent PIN saved, length:', pinToUse.length);
       } else {
         await AsyncStorage.setItem('child_pin', pinToUse);
-        console.log('[RoleSelection] Child PIN saved as:', pinToUse);
+        console.log('[RoleSelection] Child PIN saved, length:', pinToUse.length);
       }
       
       setStoreUserRole(selectedRole);
@@ -82,7 +82,9 @@ export default function RoleSelectionScreen() {
       return;
     }
 
-    if (!loginPin || loginPin.length < 4) {
+    const trimmedLoginPin = loginPin.trim();
+
+    if (!trimmedLoginPin || trimmedLoginPin.length < 4) {
       Alert.alert('Invalid PIN', 'Please enter your PIN');
       return;
     }
@@ -94,16 +96,20 @@ export default function RoleSelectionScreen() {
         ? await AsyncStorage.getItem('parent_pin')
         : await AsyncStorage.getItem('child_pin');
 
-      console.log('[RoleSelection] Stored PIN exists:', !!storedPin);
+      const normalizedStoredPin = storedPin?.trim();
 
-      if (loginPin !== storedPin) {
+      console.log('[RoleSelection] Stored PIN exists:', !!storedPin, 'length:', normalizedStoredPin?.length);
+      console.log('[RoleSelection] Entered PIN length:', trimmedLoginPin.length);
+
+      if (trimmedLoginPin !== normalizedStoredPin) {
+        console.log('[RoleSelection] PIN mismatch - Entered:', trimmedLoginPin, 'Expected:', normalizedStoredPin);
         Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect');
         setLoginPin('');
         return;
       }
 
       await AsyncStorage.setItem('user_role', selectedRole);
-      await AsyncStorage.setItem('access_pin', loginPin);
+      await AsyncStorage.setItem('access_pin', trimmedLoginPin);
       setStoreUserRole(selectedRole);
       
       console.log('[RoleSelection] Login successful, redirecting to', selectedRole === 'parent' ? 'parent dashboard' : 'child dashboard');

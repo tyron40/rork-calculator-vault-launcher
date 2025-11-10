@@ -59,13 +59,15 @@ export default function CalculatorDisguise() {
 
   const checkPinAndRedirect = useCallback(async (pin: string) => {
     try {
-      console.log('[Calculator] Checking PIN:', pin);
+      const trimmedPin = pin.trim();
+      console.log('[Calculator] Checking PIN:', trimmedPin.length, 'digits');
       
       const storedRole = await AsyncStorage.getItem('user_role');
       const parentPin = await AsyncStorage.getItem('parent_pin');
       const childPin = await AsyncStorage.getItem('child_pin');
       
       console.log('[Calculator] Stored data - Role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
+      console.log('[Calculator] Parent PIN length:', parentPin?.length, 'Child PIN length:', childPin?.length);
       
       const hasNoSetup = !parentPin && !childPin && !storedRole;
       
@@ -84,20 +86,23 @@ export default function CalculatorDisguise() {
       let isCorrectPin = false;
       let redirectTo = '/role-selection';
       
-      if (storedRole === 'parent' && parentPin === pin) {
+      const normalizedParentPin = parentPin?.trim();
+      const normalizedChildPin = childPin?.trim();
+      
+      if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === trimmedPin) {
         console.log('[Calculator] Parent PIN matched');
         isCorrectPin = true;
         redirectTo = '/parent';
-      } else if (storedRole === 'child' && childPin === pin) {
+      } else if (storedRole === 'child' && normalizedChildPin && normalizedChildPin === trimmedPin) {
         console.log('[Calculator] Child PIN matched');
         isCorrectPin = true;
         redirectTo = '/child';
-      } else if (parentPin === pin) {
+      } else if (normalizedParentPin && normalizedParentPin === trimmedPin) {
         console.log('[Calculator] Parent PIN matched (no active role)');
         isCorrectPin = true;
         await AsyncStorage.setItem('user_role', 'parent');
         redirectTo = '/parent';
-      } else if (childPin === pin) {
+      } else if (normalizedChildPin && normalizedChildPin === trimmedPin) {
         console.log('[Calculator] Child PIN matched (no active role)');
         isCorrectPin = true;
         await AsyncStorage.setItem('user_role', 'child');
@@ -116,12 +121,15 @@ export default function CalculatorDisguise() {
         return true;
       }
       
-      console.log('[Calculator] Incorrect PIN');
+      console.log('[Calculator] Incorrect PIN - Entered:', trimmedPin, 'Expected Parent:', normalizedParentPin, 'Expected Child:', normalizedChildPin);
       setPinBuffer('');
+      setDisplay('0');
       Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect. Please try again.');
       return false;
     } catch (error) {
       console.error('[Calculator] Error checking PIN:', error);
+      setPinBuffer('');
+      setDisplay('0');
       return false;
     }
   }, [router, hapticFeedback]);
@@ -153,8 +161,10 @@ export default function CalculatorDisguise() {
   const handleOperation = useCallback(async (nextOp: string) => {
     hapticFeedback();
     
-    if (pinBuffer.length >= 4) {
-      const success = await checkPinAndRedirect(pinBuffer);
+    const currentPinBuffer = pinBuffer;
+    
+    if (currentPinBuffer.length >= 4) {
+      const success = await checkPinAndRedirect(currentPinBuffer);
       if (success) {
         return;
       }
@@ -199,8 +209,10 @@ export default function CalculatorDisguise() {
   const handleEquals = useCallback(async () => {
     hapticFeedback();
     
-    if (pinBuffer.length >= 4) {
-      const success = await checkPinAndRedirect(pinBuffer);
+    const currentPinBuffer = pinBuffer;
+    
+    if (currentPinBuffer.length >= 4) {
+      const success = await checkPinAndRedirect(currentPinBuffer);
       if (success) {
         return;
       }
@@ -255,8 +267,10 @@ export default function CalculatorDisguise() {
   const handlePercent = useCallback(async () => {
     hapticFeedback();
     
-    if (pinBuffer.length >= 4) {
-      const success = await checkPinAndRedirect(pinBuffer);
+    const currentPinBuffer = pinBuffer;
+    
+    if (currentPinBuffer.length >= 4) {
+      const success = await checkPinAndRedirect(currentPinBuffer);
       if (success) {
         return;
       }
@@ -271,8 +285,10 @@ export default function CalculatorDisguise() {
   const handlePlusMinus = useCallback(async () => {
     hapticFeedback();
     
-    if (pinBuffer.length >= 4) {
-      const success = await checkPinAndRedirect(pinBuffer);
+    const currentPinBuffer = pinBuffer;
+    
+    if (currentPinBuffer.length >= 4) {
+      const success = await checkPinAndRedirect(currentPinBuffer);
       if (success) {
         return;
       }

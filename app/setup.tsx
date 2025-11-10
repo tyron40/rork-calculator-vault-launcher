@@ -35,37 +35,45 @@ export default function SetupScreen() {
 
   const handleSetup = async () => {
     if (userRole === 'parent') {
-      if (parentPin.length < 4) {
+      const trimmedParentPin = parentPin.trim();
+      const trimmedConfirmParentPin = confirmParentPin.trim();
+      const trimmedChildPin = childPin.trim();
+      const trimmedConfirmChildPin = confirmChildPin.trim();
+      
+      if (trimmedParentPin.length < 4) {
         Alert.alert('Invalid PIN', 'Parent PIN must be at least 4 digits');
         return;
       }
 
-      if (parentPin !== confirmParentPin) {
+      if (trimmedParentPin !== trimmedConfirmParentPin) {
         Alert.alert('PIN Mismatch', 'Parent PINs do not match');
         return;
       }
 
-      if (childPin.length < 4) {
+      if (trimmedChildPin.length < 4) {
         Alert.alert('Invalid PIN', 'Child PIN must be at least 4 digits');
         return;
       }
 
-      if (childPin !== confirmChildPin) {
+      if (trimmedChildPin !== trimmedConfirmChildPin) {
         Alert.alert('PIN Mismatch', 'Child PINs do not match');
         return;
       }
 
-      if (parentPin === childPin) {
+      if (trimmedParentPin === trimmedChildPin) {
         Alert.alert('Invalid PINs', 'Parent and child PINs must be different');
         return;
       }
     } else {
-      if (childPin.length < 4) {
+      const trimmedChildPin = childPin.trim();
+      const trimmedConfirmChildPin = confirmChildPin.trim();
+      
+      if (trimmedChildPin.length < 4) {
         Alert.alert('Invalid PIN', 'PIN must be at least 4 digits');
         return;
       }
 
-      if (childPin !== confirmChildPin) {
+      if (trimmedChildPin !== trimmedConfirmChildPin) {
         Alert.alert('PIN Mismatch', 'PINs do not match');
         return;
       }
@@ -83,22 +91,27 @@ export default function SetupScreen() {
       const deviceName = await getDeviceName();
 
       if (userRole === 'parent') {
-        await initializeVault(parentPin);
-        await AsyncStorage.setItem('parent_pin', parentPin);
-        await AsyncStorage.setItem('child_pin', childPin);
-        await AsyncStorage.setItem('access_pin', parentPin);
+        const normalizedParentPin = parentPin.trim();
+        const normalizedChildPin = childPin.trim();
+        
+        await initializeVault(normalizedParentPin);
+        await AsyncStorage.setItem('parent_pin', normalizedParentPin);
+        await AsyncStorage.setItem('child_pin', normalizedChildPin);
+        await AsyncStorage.setItem('access_pin', normalizedParentPin);
+        
+        console.log('[Setup] Saved Parent PIN length:', normalizedParentPin.length, 'Child PIN length:', normalizedChildPin.length);
         
         await saveConnectionConfig({
           userRole: 'parent',
-          parentPin,
-          childPin,
+          parentPin: normalizedParentPin,
+          childPin: normalizedChildPin,
           deviceId,
           deviceName,
         });
 
         console.log('[Setup] Parent vault initialized successfully');
         
-        setCurrentPin(parentPin);
+        setCurrentPin(normalizedParentPin);
         setLocked(false);
         setStoreUserRole('parent');
         
