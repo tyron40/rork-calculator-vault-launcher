@@ -35,10 +35,10 @@ export default function SetupScreen() {
 
   const handleSetup = async () => {
     if (userRole === 'parent') {
-      const trimmedParentPin = parentPin.trim();
-      const trimmedConfirmParentPin = confirmParentPin.trim();
-      const trimmedChildPin = childPin.trim();
-      const trimmedConfirmChildPin = confirmChildPin.trim();
+      const trimmedParentPin = String(parentPin).replace(/\s+/g, '');
+      const trimmedConfirmParentPin = String(confirmParentPin).replace(/\s+/g, '');
+      const trimmedChildPin = String(childPin).replace(/\s+/g, '');
+      const trimmedConfirmChildPin = String(confirmChildPin).replace(/\s+/g, '');
       
       if (trimmedParentPin.length < 4) {
         Alert.alert('Invalid PIN', 'Parent PIN must be at least 4 digits');
@@ -65,8 +65,8 @@ export default function SetupScreen() {
         return;
       }
     } else {
-      const trimmedChildPin = childPin.trim();
-      const trimmedConfirmChildPin = confirmChildPin.trim();
+      const trimmedChildPin = String(childPin).replace(/\s+/g, '');
+      const trimmedConfirmChildPin = String(confirmChildPin).replace(/\s+/g, '');
       
       if (trimmedChildPin.length < 4) {
         Alert.alert('Invalid PIN', 'PIN must be at least 4 digits');
@@ -91,15 +91,20 @@ export default function SetupScreen() {
       const deviceName = await getDeviceName();
 
       if (userRole === 'parent') {
-        const normalizedParentPin = parentPin.trim();
-        const normalizedChildPin = childPin.trim();
+        const normalizedParentPin = String(parentPin).replace(/\s+/g, '');
+        const normalizedChildPin = String(childPin).replace(/\s+/g, '');
+        
+        console.log('[Setup] Saving PINs - Parent:', normalizedParentPin, 'Child:', normalizedChildPin);
+        console.log('[Setup] Parent PIN length:', normalizedParentPin.length, 'Child PIN length:', normalizedChildPin.length);
         
         await initializeVault(normalizedParentPin);
         await AsyncStorage.setItem('parent_pin', normalizedParentPin);
         await AsyncStorage.setItem('child_pin', normalizedChildPin);
         await AsyncStorage.setItem('access_pin', normalizedParentPin);
         
-        console.log('[Setup] Saved Parent PIN length:', normalizedParentPin.length, 'Child PIN length:', normalizedChildPin.length);
+        const verifyParent = await AsyncStorage.getItem('parent_pin');
+        const verifyChild = await AsyncStorage.getItem('child_pin');
+        console.log('[Setup] Verification - Parent PIN stored:', verifyParent, 'Child PIN stored:', verifyChild);
         
         await saveConnectionConfig({
           userRole: 'parent',
@@ -118,9 +123,14 @@ export default function SetupScreen() {
         router.replace('/onboarding');
       } else {
         const defaultChildPin = '0000';
+        console.log('[Setup] Saving Child PIN:', defaultChildPin);
+        
         await initializeVault(defaultChildPin);
         await AsyncStorage.setItem('child_pin', defaultChildPin);
         await AsyncStorage.setItem('access_pin', defaultChildPin);
+        
+        const verifyChild = await AsyncStorage.getItem('child_pin');
+        console.log('[Setup] Verification - Child PIN stored:', verifyChild);
         
         const code = await generatePairingCode();
         const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');

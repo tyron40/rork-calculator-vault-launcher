@@ -59,15 +59,16 @@ export default function CalculatorDisguise() {
 
   const checkPinAndRedirect = useCallback(async (pin: string) => {
     try {
-      const trimmedPin = pin.trim();
-      console.log('[Calculator] Checking PIN:', trimmedPin.length, 'digits');
+      const enteredPin = String(pin).replace(/\s+/g, '');
+      console.log('[Calculator] Checking PIN - Length:', enteredPin.length, 'Value:', enteredPin);
       
       const storedRole = await AsyncStorage.getItem('user_role');
       const parentPin = await AsyncStorage.getItem('parent_pin');
       const childPin = await AsyncStorage.getItem('child_pin');
       
-      console.log('[Calculator] Stored data - Role:', storedRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
-      console.log('[Calculator] Parent PIN length:', parentPin?.length, 'Child PIN length:', childPin?.length);
+      console.log('[Calculator] Stored data - Role:', storedRole);
+      console.log('[Calculator] Parent PIN exists:', !!parentPin, 'Length:', parentPin?.length, 'Value:', parentPin);
+      console.log('[Calculator] Child PIN exists:', !!childPin, 'Length:', childPin?.length, 'Value:', childPin);
       
       const hasNoSetup = !parentPin && !childPin && !storedRole;
       
@@ -86,23 +87,25 @@ export default function CalculatorDisguise() {
       let isCorrectPin = false;
       let redirectTo = '/role-selection';
       
-      const normalizedParentPin = parentPin?.trim();
-      const normalizedChildPin = childPin?.trim();
+      const normalizedParentPin = parentPin ? String(parentPin).replace(/\s+/g, '') : null;
+      const normalizedChildPin = childPin ? String(childPin).replace(/\s+/g, '') : null;
       
-      if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === trimmedPin) {
+      console.log('[Calculator] Normalized - Parent:', normalizedParentPin, 'Child:', normalizedChildPin, 'Entered:', enteredPin);
+      
+      if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
         console.log('[Calculator] Parent PIN matched');
         isCorrectPin = true;
         redirectTo = '/parent';
-      } else if (storedRole === 'child' && normalizedChildPin && normalizedChildPin === trimmedPin) {
+      } else if (storedRole === 'child' && normalizedChildPin && normalizedChildPin === enteredPin) {
         console.log('[Calculator] Child PIN matched');
         isCorrectPin = true;
         redirectTo = '/child';
-      } else if (normalizedParentPin && normalizedParentPin === trimmedPin) {
+      } else if (normalizedParentPin && normalizedParentPin === enteredPin) {
         console.log('[Calculator] Parent PIN matched (no active role)');
         isCorrectPin = true;
         await AsyncStorage.setItem('user_role', 'parent');
         redirectTo = '/parent';
-      } else if (normalizedChildPin && normalizedChildPin === trimmedPin) {
+      } else if (normalizedChildPin && normalizedChildPin === enteredPin) {
         console.log('[Calculator] Child PIN matched (no active role)');
         isCorrectPin = true;
         await AsyncStorage.setItem('user_role', 'child');
@@ -121,7 +124,13 @@ export default function CalculatorDisguise() {
         return true;
       }
       
-      console.log('[Calculator] Incorrect PIN - Entered:', trimmedPin, 'Expected Parent:', normalizedParentPin, 'Expected Child:', normalizedChildPin);
+      console.log('[Calculator] PIN verification FAILED');
+      console.log('[Calculator] - Entered PIN:', enteredPin);
+      console.log('[Calculator] - Expected Parent:', normalizedParentPin);
+      console.log('[Calculator] - Expected Child:', normalizedChildPin);
+      console.log('[Calculator] - Parent match:', normalizedParentPin === enteredPin);
+      console.log('[Calculator] - Child match:', normalizedChildPin === enteredPin);
+      
       setPinBuffer('');
       setDisplay('0');
       Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect. Please try again.');
