@@ -23,7 +23,8 @@ export default function CalculatorDisguise() {
       
       if (!consent) {
         console.log('[Calculator] No parental consent, redirecting to consent screen');
-        router.replace('/consent');
+        setIsLoading(false);
+        setTimeout(() => router.replace('/consent'), 100);
         return;
       }
       
@@ -31,6 +32,8 @@ export default function CalculatorDisguise() {
       console.log('[Calculator] To access: Type your PIN and press =');
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
+      setIsLoading(false);
+      setTimeout(() => router.replace('/consent'), 100);
     } finally {
       setIsLoading(false);
     }
@@ -38,14 +41,15 @@ export default function CalculatorDisguise() {
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      console.log('[Calculator] Initialization timeout, setting loading to false');
+      console.log('[Calculator] Initialization timeout, forcing consent screen');
       setIsLoading(false);
-    }, 5000);
+      router.replace('/consent');
+    }, 3000);
     
     checkInitialization().finally(() => clearTimeout(timeout));
     
     return () => clearTimeout(timeout);
-  }, [checkInitialization]);
+  }, [checkInitialization, router]);
 
   const hapticFeedback = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -332,7 +336,7 @@ export default function CalculatorDisguise() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#ff9f0a" />
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>Starting...</Text>
       </View>
     );
   }
