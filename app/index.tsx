@@ -24,18 +24,17 @@ export default function CalculatorDisguise() {
       if (!consent) {
         console.log('[Calculator] No parental consent, redirecting to consent screen');
         setIsLoading(false);
-        setTimeout(() => router.replace('/consent'), 100);
+        router.replace('/consent');
         return;
       }
       
       console.log('[Calculator] Calculator disguise ready');
       console.log('[Calculator] To access: Type your PIN and press =');
+      setIsLoading(false);
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
       setIsLoading(false);
-      setTimeout(() => router.replace('/consent'), 100);
-    } finally {
-      setIsLoading(false);
+      router.replace('/consent');
     }
   }, [router]);
 

@@ -39,18 +39,25 @@ export const trpcClient = trpc.createClient({
       url: `${getBaseUrl()}/api/trpc`,
       transformer: superjson,
       fetch: (url, options) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
         return fetch(url, {
           ...options,
-          signal: options?.signal,
+          signal: options?.signal || controller.signal,
         }).catch((error) => {
           if (error.name === 'AbortError') {
-            console.log('[tRPC] Request aborted');
+            console.log('[tRPC] Request timeout or aborted');
             throw error;
           }
           console.error('[tRPC] Fetch error:', error);
           throw error;
+        }).finally(() => {
+          clearTimeout(timeoutId);
         });
       },
     }),
   ],
 });
+
+console.log('[tRPC] Client initialized with base URL:', getBaseUrl());
