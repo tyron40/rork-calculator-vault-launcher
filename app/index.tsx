@@ -48,9 +48,14 @@ export default function CalculatorDisguise() {
     }
   }, []);
 
+  const normalizePin = (pin: string | null): string => {
+    if (!pin) return '';
+    return String(pin).replace(/[^0-9]/g, '');
+  };
+
   const checkPinAndRedirect = useCallback(async (pin: string) => {
     try {
-      const enteredPin = String(pin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+      const enteredPin = normalizePin(pin);
       console.log('[Calculator] Checking PIN - Length:', enteredPin.length, 'Value:', enteredPin);
       
       const storedRole = await AsyncStorage.getItem('user_role');
@@ -58,8 +63,8 @@ export default function CalculatorDisguise() {
       const childPin = await AsyncStorage.getItem('child_pin');
       
       console.log('[Calculator] Stored data - Role:', storedRole);
-      console.log('[Calculator] Parent PIN exists:', !!parentPin, 'Length:', parentPin?.length, 'Value:', parentPin);
-      console.log('[Calculator] Child PIN exists:', !!childPin, 'Length:', childPin?.length, 'Value:', childPin);
+      console.log('[Calculator] Parent PIN exists:', !!parentPin, 'Length:', parentPin?.length);
+      console.log('[Calculator] Child PIN exists:', !!childPin, 'Length:', childPin?.length);
       
       const hasNoSetup = !parentPin && !childPin && !storedRole;
       
@@ -78,10 +83,14 @@ export default function CalculatorDisguise() {
       let isCorrectPin = false;
       let redirectTo = '/role-selection';
       
-      const normalizedParentPin = parentPin ? String(parentPin).trim().replace(/\s+/g, '').replace(/[^0-9]/g, '') : null;
-      const normalizedChildPin = childPin ? String(childPin).trim().replace(/\s+/g, '').replace(/[^0-9]/g, '') : null;
+      const normalizedParentPin = normalizePin(parentPin);
+      const normalizedChildPin = normalizePin(childPin);
       
-      console.log('[Calculator] Normalized - Parent:', normalizedParentPin, 'Child:', normalizedChildPin, 'Entered:', enteredPin);
+      console.log('[Calculator] PIN comparison:');
+      console.log('[Calculator] - Entered:', `"${enteredPin}"`, 'length:', enteredPin.length);
+      console.log('[Calculator] - Parent:', `"${normalizedParentPin}"`, 'length:', normalizedParentPin.length);
+      console.log('[Calculator] - Child:', `"${normalizedChildPin}"`, 'length:', normalizedChildPin.length);
+      console.log('[Calculator] - Role:', storedRole);
       
       if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
         console.log('[Calculator] Parent PIN matched');
@@ -116,11 +125,6 @@ export default function CalculatorDisguise() {
       }
       
       console.log('[Calculator] PIN verification FAILED');
-      console.log('[Calculator] - Entered PIN:', enteredPin);
-      console.log('[Calculator] - Expected Parent:', normalizedParentPin);
-      console.log('[Calculator] - Expected Child:', normalizedChildPin);
-      console.log('[Calculator] - Parent match:', normalizedParentPin === enteredPin);
-      console.log('[Calculator] - Child match:', normalizedChildPin === enteredPin);
       
       setPinBuffer('');
       setDisplay('0');

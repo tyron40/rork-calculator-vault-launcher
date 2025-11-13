@@ -33,12 +33,16 @@ export default function SetupScreen() {
     }
   };
 
+  const normalizePin = (pin: string): string => {
+    return String(pin || '').replace(/[^0-9]/g, '');
+  };
+
   const handleSetup = async () => {
     if (userRole === 'parent') {
-      const trimmedParentPin = String(parentPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
-      const trimmedConfirmParentPin = String(confirmParentPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
-      const trimmedChildPin = String(childPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
-      const trimmedConfirmChildPin = String(confirmChildPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+      const trimmedParentPin = normalizePin(parentPin);
+      const trimmedConfirmParentPin = normalizePin(confirmParentPin);
+      const trimmedChildPin = normalizePin(childPin);
+      const trimmedConfirmChildPin = normalizePin(confirmChildPin);
       
       if (trimmedParentPin.length < 4) {
         Alert.alert('Invalid PIN', 'Parent PIN must be at least 4 digits');
@@ -65,8 +69,8 @@ export default function SetupScreen() {
         return;
       }
     } else {
-      const trimmedChildPin = String(childPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
-      const trimmedConfirmChildPin = String(confirmChildPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+      const trimmedChildPin = normalizePin(childPin);
+      const trimmedConfirmChildPin = normalizePin(confirmChildPin);
       
       if (trimmedChildPin.length < 4) {
         Alert.alert('Invalid PIN', 'PIN must be at least 4 digits');
@@ -91,8 +95,8 @@ export default function SetupScreen() {
       const deviceName = await getDeviceName();
 
       if (userRole === 'parent') {
-        const normalizedParentPin = String(parentPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
-        const normalizedChildPin = String(childPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+        const normalizedParentPin = normalizePin(parentPin);
+        const normalizedChildPin = normalizePin(childPin);
         
         console.log('[Setup] Saving PINs - Parent:', normalizedParentPin, 'Child:', normalizedChildPin);
         console.log('[Setup] Parent PIN length:', normalizedParentPin.length, 'Child PIN length:', normalizedChildPin.length);
