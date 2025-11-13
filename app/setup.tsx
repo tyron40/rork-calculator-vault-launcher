@@ -105,6 +105,7 @@ export default function SetupScreen() {
         await AsyncStorage.setItem('parent_pin', normalizedParentPin);
         await AsyncStorage.setItem('child_pin', normalizedChildPin);
         await AsyncStorage.setItem('access_pin', normalizedParentPin);
+        await AsyncStorage.setItem('user_role', 'parent');
         
         const verifyParent = await AsyncStorage.getItem('parent_pin');
         const verifyChild = await AsyncStorage.getItem('child_pin');
@@ -126,12 +127,13 @@ export default function SetupScreen() {
         
         router.replace('/onboarding');
       } else {
-        const defaultChildPin = '0000';
-        console.log('[Setup] Saving Child PIN:', defaultChildPin);
+        const normalizedChildPin = normalizePin(childPin);
+        console.log('[Setup] Saving Child PIN:', normalizedChildPin, 'length:', normalizedChildPin.length);
         
-        await initializeVault(defaultChildPin);
-        await AsyncStorage.setItem('child_pin', defaultChildPin);
-        await AsyncStorage.setItem('access_pin', defaultChildPin);
+        await initializeVault(normalizedChildPin);
+        await AsyncStorage.setItem('child_pin', normalizedChildPin);
+        await AsyncStorage.setItem('access_pin', normalizedChildPin);
+        await AsyncStorage.setItem('user_role', 'child');
         
         const verifyChild = await AsyncStorage.getItem('child_pin');
         console.log('[Setup] Verification - Child PIN stored:', verifyChild);
@@ -143,14 +145,14 @@ export default function SetupScreen() {
         await saveConnectionConfig({
           userRole: 'child',
           parentPin: null,
-          childPin: defaultChildPin,
+          childPin: normalizedChildPin,
           deviceId,
           deviceName,
         });
 
         console.log('[Setup] Child vault initialized with pairing code:', code);
         
-        setCurrentPin(defaultChildPin);
+        setCurrentPin(normalizedChildPin);
         setLocked(false);
         setStoreUserRole('child');
         
