@@ -34,7 +34,9 @@ export default function SetupScreen() {
   };
 
   const normalizePin = (pin: string): string => {
-    return String(pin || '').replace(/[^0-9]/g, '');
+    const normalized = String(pin || '').trim().replace(/[^0-9]/g, '');
+    console.log('[Setup] normalizePin input:', JSON.stringify(pin), 'output:', JSON.stringify(normalized));
+    return normalized;
   };
 
   const handleSetup = async () => {
@@ -98,8 +100,9 @@ export default function SetupScreen() {
         const normalizedParentPin = normalizePin(parentPin);
         const normalizedChildPin = normalizePin(childPin);
         
-        console.log('[Setup] Saving PINs - Parent:', normalizedParentPin, 'Child:', normalizedChildPin);
-        console.log('[Setup] Parent PIN length:', normalizedParentPin.length, 'Child PIN length:', normalizedChildPin.length);
+        console.log('[Setup] Saving PINs - Parent:', JSON.stringify(normalizedParentPin), 'Child:', JSON.stringify(normalizedChildPin));
+        console.log('[Setup] Parent PIN length:', normalizedParentPin.length, 'bytes:', Array.from(normalizedParentPin).map(c => c.charCodeAt(0)));
+        console.log('[Setup] Child PIN length:', normalizedChildPin.length, 'bytes:', Array.from(normalizedChildPin).map(c => c.charCodeAt(0)));
         
         await initializeVault(normalizedParentPin);
         await AsyncStorage.setItem('parent_pin', normalizedParentPin);
@@ -109,7 +112,8 @@ export default function SetupScreen() {
         
         const verifyParent = await AsyncStorage.getItem('parent_pin');
         const verifyChild = await AsyncStorage.getItem('child_pin');
-        console.log('[Setup] Verification - Parent PIN stored:', verifyParent, 'Child PIN stored:', verifyChild);
+        console.log('[Setup] Verification - Parent PIN stored:', JSON.stringify(verifyParent), 'length:', verifyParent?.length);
+        console.log('[Setup] Verification - Child PIN stored:', JSON.stringify(verifyChild), 'length:', verifyChild?.length);
         
         await saveConnectionConfig({
           userRole: 'parent',
@@ -128,7 +132,7 @@ export default function SetupScreen() {
         router.replace('/onboarding');
       } else {
         const normalizedChildPin = normalizePin(childPin);
-        console.log('[Setup] Saving Child PIN:', normalizedChildPin, 'length:', normalizedChildPin.length);
+        console.log('[Setup] Saving Child PIN:', JSON.stringify(normalizedChildPin), 'length:', normalizedChildPin.length, 'bytes:', Array.from(normalizedChildPin).map(c => c.charCodeAt(0)));
         
         await initializeVault(normalizedChildPin);
         await AsyncStorage.setItem('child_pin', normalizedChildPin);
@@ -136,7 +140,7 @@ export default function SetupScreen() {
         await AsyncStorage.setItem('user_role', 'child');
         
         const verifyChild = await AsyncStorage.getItem('child_pin');
-        console.log('[Setup] Verification - Child PIN stored:', verifyChild);
+        console.log('[Setup] Verification - Child PIN stored:', JSON.stringify(verifyChild), 'length:', verifyChild?.length);
         
         const code = await generatePairingCode();
         const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');

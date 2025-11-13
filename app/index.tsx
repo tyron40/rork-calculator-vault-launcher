@@ -50,7 +50,9 @@ export default function CalculatorDisguise() {
 
   const normalizePin = (pin: string | null): string => {
     if (!pin) return '';
-    return String(pin).replace(/[^0-9]/g, '');
+    const normalized = String(pin).trim().replace(/[^0-9]/g, '');
+    console.log('[Calculator] normalizePin input:', JSON.stringify(pin), 'output:', JSON.stringify(normalized));
+    return normalized;
   };
 
   const checkPinAndRedirect = useCallback(async (pin: string) => {
@@ -87,10 +89,14 @@ export default function CalculatorDisguise() {
       const normalizedChildPin = normalizePin(childPin);
       
       console.log('[Calculator] PIN comparison:');
-      console.log('[Calculator] - Entered:', `"${enteredPin}"`, 'length:', enteredPin.length);
-      console.log('[Calculator] - Parent:', `"${normalizedParentPin}"`, 'length:', normalizedParentPin.length);
-      console.log('[Calculator] - Child:', `"${normalizedChildPin}"`, 'length:', normalizedChildPin.length);
+      console.log('[Calculator] - Entered:', JSON.stringify(enteredPin), 'length:', enteredPin.length, 'bytes:', Array.from(enteredPin).map(c => c.charCodeAt(0)));
+      console.log('[Calculator] - Parent raw:', JSON.stringify(parentPin));
+      console.log('[Calculator] - Parent normalized:', JSON.stringify(normalizedParentPin), 'length:', normalizedParentPin.length, 'bytes:', normalizedParentPin ? Array.from(normalizedParentPin).map(c => c.charCodeAt(0)) : []);
+      console.log('[Calculator] - Child raw:', JSON.stringify(childPin));
+      console.log('[Calculator] - Child normalized:', JSON.stringify(normalizedChildPin), 'length:', normalizedChildPin.length, 'bytes:', normalizedChildPin ? Array.from(normalizedChildPin).map(c => c.charCodeAt(0)) : []);
       console.log('[Calculator] - Role:', storedRole);
+      console.log('[Calculator] - Parent match:', normalizedParentPin === enteredPin, 'strict equals');
+      console.log('[Calculator] - Child match:', normalizedChildPin === enteredPin, 'strict equals');
       
       if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
         console.log('[Calculator] Parent PIN matched');
