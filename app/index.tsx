@@ -40,16 +40,8 @@ export default function CalculatorDisguise() {
   }, [router]);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      console.log('[Calculator] Initialization timeout, forcing consent screen');
-      setIsLoading(false);
-      router.replace('/consent');
-    }, 3000);
-    
-    checkInitialization().finally(() => clearTimeout(timeout));
-    
-    return () => clearTimeout(timeout);
-  }, [checkInitialization, router]);
+    checkInitialization();
+  }, [checkInitialization]);
 
   const hapticFeedback = useCallback(() => {
     if (Platform.OS !== 'web') {
