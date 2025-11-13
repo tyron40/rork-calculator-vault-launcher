@@ -35,10 +35,10 @@ export default function SetupScreen() {
 
   const handleSetup = async () => {
     if (userRole === 'parent') {
-      const trimmedParentPin = String(parentPin).replace(/\s+/g, '');
-      const trimmedConfirmParentPin = String(confirmParentPin).replace(/\s+/g, '');
-      const trimmedChildPin = String(childPin).replace(/\s+/g, '');
-      const trimmedConfirmChildPin = String(confirmChildPin).replace(/\s+/g, '');
+      const trimmedParentPin = String(parentPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+      const trimmedConfirmParentPin = String(confirmParentPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+      const trimmedChildPin = String(childPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+      const trimmedConfirmChildPin = String(confirmChildPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
       
       if (trimmedParentPin.length < 4) {
         Alert.alert('Invalid PIN', 'Parent PIN must be at least 4 digits');
@@ -65,8 +65,8 @@ export default function SetupScreen() {
         return;
       }
     } else {
-      const trimmedChildPin = String(childPin).replace(/\s+/g, '');
-      const trimmedConfirmChildPin = String(confirmChildPin).replace(/\s+/g, '');
+      const trimmedChildPin = String(childPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+      const trimmedConfirmChildPin = String(confirmChildPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
       
       if (trimmedChildPin.length < 4) {
         Alert.alert('Invalid PIN', 'PIN must be at least 4 digits');
@@ -91,8 +91,8 @@ export default function SetupScreen() {
       const deviceName = await getDeviceName();
 
       if (userRole === 'parent') {
-        const normalizedParentPin = String(parentPin).replace(/\s+/g, '');
-        const normalizedChildPin = String(childPin).replace(/\s+/g, '');
+        const normalizedParentPin = String(parentPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
+        const normalizedChildPin = String(childPin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
         
         console.log('[Setup] Saving PINs - Parent:', normalizedParentPin, 'Child:', normalizedChildPin);
         console.log('[Setup] Parent PIN length:', normalizedParentPin.length, 'Child PIN length:', normalizedChildPin.length);

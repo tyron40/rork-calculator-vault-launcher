@@ -50,7 +50,7 @@ export default function CalculatorDisguise() {
 
   const checkPinAndRedirect = useCallback(async (pin: string) => {
     try {
-      const enteredPin = String(pin).replace(/\s+/g, '');
+      const enteredPin = String(pin || '').trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
       console.log('[Calculator] Checking PIN - Length:', enteredPin.length, 'Value:', enteredPin);
       
       const storedRole = await AsyncStorage.getItem('user_role');
@@ -78,8 +78,8 @@ export default function CalculatorDisguise() {
       let isCorrectPin = false;
       let redirectTo = '/role-selection';
       
-      const normalizedParentPin = parentPin ? String(parentPin).replace(/\s+/g, '') : null;
-      const normalizedChildPin = childPin ? String(childPin).replace(/\s+/g, '') : null;
+      const normalizedParentPin = parentPin ? String(parentPin).trim().replace(/\s+/g, '').replace(/[^0-9]/g, '') : null;
+      const normalizedChildPin = childPin ? String(childPin).trim().replace(/\s+/g, '').replace(/[^0-9]/g, '') : null;
       
       console.log('[Calculator] Normalized - Parent:', normalizedParentPin, 'Child:', normalizedChildPin, 'Entered:', enteredPin);
       
