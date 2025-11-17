@@ -18,13 +18,17 @@ export default function CalculatorDisguise() {
   const checkInitialization = useCallback(async () => {
     try {
       console.log('[Calculator] Checking initial setup');
+      console.log('[Calculator] Platform:', Platform.OS);
       
       const consent = await AsyncStorage.getItem('parental_consent');
+      console.log('[Calculator] Consent found:', !!consent);
       
       if (!consent) {
         console.log('[Calculator] No parental consent, redirecting to consent screen');
-        setIsLoading(false);
-        router.replace('/consent');
+        setTimeout(() => {
+          setIsLoading(false);
+          router.replace('/consent');
+        }, 100);
         return;
       }
       
@@ -33,8 +37,10 @@ export default function CalculatorDisguise() {
       setIsLoading(false);
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
-      setIsLoading(false);
-      router.replace('/consent');
+      setTimeout(() => {
+        setIsLoading(false);
+        router.replace('/consent');
+      }, 100);
     }
   }, [router]);
 
