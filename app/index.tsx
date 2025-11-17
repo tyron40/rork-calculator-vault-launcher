@@ -31,6 +31,21 @@ export default function CalculatorDisguise() {
         }, 100);
         return;
       }
+
+      const parentPin = await AsyncStorage.getItem('parent_pin');
+      const childPin = await AsyncStorage.getItem('child_pin');
+      const userRole = await AsyncStorage.getItem('user_role');
+      
+      console.log('[Calculator] Setup check - Role:', userRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
+      
+      if (!parentPin && !childPin && !userRole) {
+        console.log('[Calculator] No PIN setup found, redirecting to role selection');
+        setTimeout(() => {
+          setIsLoading(false);
+          router.replace('/role-selection');
+        }, 100);
+        return;
+      }
       
       console.log('[Calculator] Calculator disguise ready');
       console.log('[Calculator] To access: Type your PIN and press =');
