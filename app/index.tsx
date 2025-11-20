@@ -153,10 +153,49 @@ export default function CalculatorDisguise() {
       }
       
       console.log('[Calculator] PIN verification FAILED');
+      console.log('[Calculator] ==== TROUBLESHOOTING INFO ====');
+      console.log('[Calculator] If you are having trouble logging in:');
+      console.log('[Calculator] 1. Check if you set up the device correctly');
+      console.log('[Calculator] 2. Try entering: Parent PIN or Child PIN');
+      console.log('[Calculator] 3. Long press on calculator display to reset');
+      console.log('[Calculator] ===================================');
       
       setPinBuffer('');
       setDisplay('0');
-      Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect. Please try again.');
+      Alert.alert(
+        'Incorrect PIN',
+        'The PIN you entered is incorrect.\n\nTip: Type your PIN (4+ digits) then press = to login.\n\nLong-press the display to reset if you forgot your PIN.',
+        [
+          { text: 'Try Again', style: 'default' },
+          {
+            text: 'Reset Device',
+            style: 'destructive',
+            onPress: () => {
+              Alert.alert(
+                'Reset Device?',
+                'This will clear all PINs and settings. You will need to set up the device again.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Reset',
+                    style: 'destructive',
+                    onPress: async () => {
+                      await AsyncStorage.multiRemove([
+                        'parent_pin',
+                        'child_pin',
+                        'user_role',
+                        'access_pin',
+                        'parental_consent',
+                      ]);
+                      router.replace('/consent');
+                    },
+                  },
+                ]
+              );
+            },
+          },
+        ]
+      );
       return false;
     } catch (error) {
       console.error('[Calculator] Error checking PIN:', error);
@@ -447,13 +486,54 @@ export default function CalculatorDisguise() {
         style={styles.exitHint}
         onPress={async () => {
           const role = await AsyncStorage.getItem('user_role');
+          const parentPin = await AsyncStorage.getItem('parent_pin');
+          const childPin = await AsyncStorage.getItem('child_pin');
+          
+          const debugInfo = `Role: ${role || 'Not set'}\nParent PIN: ${parentPin ? 'Set' : 'Not set'}\nChild PIN: ${childPin ? 'Set' : 'Not set'}`;
+          
           Alert.alert(
             'Calculator Info',
             role === 'parent'
-              ? `This is a fully functional calculator.\n\nTo access parent dashboard:\n1. Type your parent PIN\n2. Press = button\n\nYour role: Parent`
+              ? `This is a fully functional calculator.\n\nTo access parent dashboard:\n1. Type your parent PIN (4+ digits)\n2. Press = button\n\nCurrent Setup:\n${debugInfo}`
               : role === 'child'
-              ? `This is a fully functional calculator.\n\nTo access child dashboard:\n1. Type your child PIN\n2. Press = button\n\nYour role: Child`
-              : 'Enter your PIN and press = to access the app',
+              ? `This is a fully functional calculator.\n\nTo access child dashboard:\n1. Type your child PIN (4+ digits)\n2. Press = button\n\nCurrent Setup:\n${debugInfo}`
+              : `Enter your PIN and press = to access the app\n\nCurrent Setup:\n${debugInfo}`,
+            [
+              { text: 'OK', style: 'default' },
+              {
+                text: 'Reset Device',
+                style: 'destructive',
+                onPress: () => {
+                  Alert.alert(
+                    'Reset Device?',
+                    'This will clear all PINs and settings. You will need to set up the device again.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Reset',
+                        style: 'destructive',
+                        onPress: async () => {
+                          await AsyncStorage.multiRemove([
+                            'parent_pin',
+                            'child_pin',
+                            'user_role',
+                            'access_pin',
+                            'parental_consent',
+                          ]);
+                          router.replace('/consent');
+                        },
+                      },
+                    ]
+                  );
+                },
+              },
+            ]
+          );
+        }}
+        onLongPress={async () => {
+          Alert.alert(
+            'Debug Info',
+            'Check console for detailed PIN validation logs.\n\nPress and hold the display for 3 seconds to see reset option.',
             [{ text: 'OK' }]
           );
         }}
