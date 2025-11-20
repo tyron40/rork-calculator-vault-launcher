@@ -34,13 +34,18 @@ export default function RoleSelectionScreen() {
     checkIfSetupNeeded();
   }, [checkIfSetupNeeded]);
 
+  const normalizePin = (pin: string): string => {
+    return pin.trim().replace(/[^0-9]/g, '');
+  };
+
   const handleSetup = async () => {
     if (!selectedRole) {
       Alert.alert('Select Role', 'Please select whether this is a parent or child device');
       return;
     }
 
-    const pinToUse = (selectedRole === 'child' && !loginPin ? '0000' : loginPin).trim();
+    const rawPin = selectedRole === 'child' && !loginPin ? '0000' : loginPin;
+    const pinToUse = normalizePin(rawPin);
 
     if (!pinToUse || pinToUse.length < 4) {
       Alert.alert('Invalid PIN', 'Please enter a PIN with at least 4 digits');
@@ -49,16 +54,17 @@ export default function RoleSelectionScreen() {
 
     try {
       console.log('[RoleSelection] Setting up device with role:', selectedRole);
+      console.log('[RoleSelection] Normalized PIN length:', pinToUse.length, 'value:', pinToUse);
       
       await AsyncStorage.setItem('access_pin', pinToUse);
       await AsyncStorage.setItem('user_role', selectedRole);
       
       if (selectedRole === 'parent') {
         await AsyncStorage.setItem('parent_pin', pinToUse);
-        console.log('[RoleSelection] Parent PIN saved, length:', pinToUse.length);
+        console.log('[RoleSelection] Parent PIN saved (normalized):', pinToUse);
       } else {
         await AsyncStorage.setItem('child_pin', pinToUse);
-        console.log('[RoleSelection] Child PIN saved, length:', pinToUse.length);
+        console.log('[RoleSelection] Child PIN saved (normalized):', pinToUse);
       }
       
       setStoreUserRole(selectedRole);
@@ -82,9 +88,9 @@ export default function RoleSelectionScreen() {
       return;
     }
 
-    const trimmedLoginPin = loginPin.trim();
+    const enteredPin = normalizePin(loginPin);
 
-    if (!trimmedLoginPin || trimmedLoginPin.length < 4) {
+    if (!enteredPin || enteredPin.length < 4) {
       Alert.alert('Invalid PIN', 'Please enter your PIN');
       return;
     }
@@ -96,20 +102,20 @@ export default function RoleSelectionScreen() {
         ? await AsyncStorage.getItem('parent_pin')
         : await AsyncStorage.getItem('child_pin');
 
-      const normalizedStoredPin = storedPin?.trim();
+      const normalizedStoredPin = normalizePin(storedPin || '');
 
-      console.log('[RoleSelection] Stored PIN exists:', !!storedPin, 'length:', normalizedStoredPin?.length);
-      console.log('[RoleSelection] Entered PIN length:', trimmedLoginPin.length);
+      console.log('[RoleSelection] Stored PIN (normalized):', normalizedStoredPin, 'length:', normalizedStoredPin.length);
+      console.log('[RoleSelection] Entered PIN (normalized):', enteredPin, 'length:', enteredPin.length);
 
-      if (trimmedLoginPin !== normalizedStoredPin) {
-        console.log('[RoleSelection] PIN mismatch - Entered:', trimmedLoginPin, 'Expected:', normalizedStoredPin);
+      if (enteredPin !== normalizedStoredPin) {
+        console.log('[RoleSelection] PIN mismatch');
         Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect');
         setLoginPin('');
         return;
       }
 
       await AsyncStorage.setItem('user_role', selectedRole);
-      await AsyncStorage.setItem('access_pin', trimmedLoginPin);
+      await AsyncStorage.setItem('access_pin', enteredPin);
       setStoreUserRole(selectedRole);
       
       console.log('[RoleSelection] Login successful, redirecting to', selectedRole === 'parent' ? 'parent dashboard' : 'child dashboard');

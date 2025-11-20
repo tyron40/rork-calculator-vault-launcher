@@ -109,15 +109,16 @@ export default function CalculatorDisguise() {
       const normalizedParentPin = normalizePin(parentPin);
       const normalizedChildPin = normalizePin(childPin);
       
-      console.log('[Calculator] PIN comparison:');
-      console.log('[Calculator] - Entered:', JSON.stringify(enteredPin), 'length:', enteredPin.length, 'bytes:', Array.from(enteredPin).map(c => c.charCodeAt(0)));
-      console.log('[Calculator] - Parent raw:', JSON.stringify(parentPin));
-      console.log('[Calculator] - Parent normalized:', JSON.stringify(normalizedParentPin), 'length:', normalizedParentPin.length, 'bytes:', normalizedParentPin ? Array.from(normalizedParentPin).map(c => c.charCodeAt(0)) : []);
-      console.log('[Calculator] - Child raw:', JSON.stringify(childPin));
-      console.log('[Calculator] - Child normalized:', JSON.stringify(normalizedChildPin), 'length:', normalizedChildPin.length, 'bytes:', normalizedChildPin ? Array.from(normalizedChildPin).map(c => c.charCodeAt(0)) : []);
-      console.log('[Calculator] - Role:', storedRole);
-      console.log('[Calculator] - Parent match:', normalizedParentPin === enteredPin, 'strict equals');
-      console.log('[Calculator] - Child match:', normalizedChildPin === enteredPin, 'strict equals');
+      console.log('[Calculator] ===== PIN VALIDATION START =====');
+      console.log('[Calculator] Entered PIN:', JSON.stringify(enteredPin), 'length:', enteredPin.length);
+      console.log('[Calculator] Parent PIN (raw):', JSON.stringify(parentPin));
+      console.log('[Calculator] Parent PIN (normalized):', JSON.stringify(normalizedParentPin), 'length:', normalizedParentPin.length);
+      console.log('[Calculator] Child PIN (raw):', JSON.stringify(childPin));
+      console.log('[Calculator] Child PIN (normalized):', JSON.stringify(normalizedChildPin), 'length:', normalizedChildPin.length);
+      console.log('[Calculator] Current Role:', storedRole);
+      console.log('[Calculator] Parent PIN matches?:', normalizedParentPin === enteredPin);
+      console.log('[Calculator] Child PIN matches?:', normalizedChildPin === enteredPin);
+      console.log('[Calculator] ===== PIN VALIDATION END =====');
       
       if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
         console.log('[Calculator] Parent PIN matched');
