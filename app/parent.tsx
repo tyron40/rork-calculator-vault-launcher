@@ -51,21 +51,23 @@ export default function ParentDashboardScreen() {
   useEffect(() => {
     const initializeParent = async () => {
       try {
-        const pin = await AsyncStorage.getItem('parent_pin');
         const role = await AsyncStorage.getItem('user_role');
         
-        if (!pin || role !== 'parent') {
-          console.log('[ParentDashboard] Invalid access, redirecting');
-          router.replace('/');
+        if (role !== 'parent') {
+          console.log('[ParentDashboard] Wrong role, redirecting to role selection');
+          router.replace('/role-selection');
           return;
         }
         
-        setCurrentPin(pin);
+        const pin = await AsyncStorage.getItem('parent_pin');
+        if (pin) {
+          setCurrentPin(pin);
+        }
         setStoreUserRole('parent');
-        console.log('[ParentDashboard] Initialized successfully');
+        console.log('[ParentDashboard] Initialized successfully as parent');
       } catch (error) {
         console.error('[ParentDashboard] Error initializing:', error);
-        router.replace('/');
+        router.replace('/role-selection');
       }
     };
     
