@@ -1,5 +1,6 @@
 import { publicProcedure } from "../../../create-context";
 import { z } from "zod";
+import { pairingStore } from '../verifyCode/route';
 
 export const generateCodeProcedure = publicProcedure
   .input(
@@ -10,17 +11,31 @@ export const generateCodeProcedure = publicProcedure
   )
   .mutation(async ({ input }) => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const expiresAtTimestamp = Date.now() + 5 * 60 * 1000;
+    
+    pairingStore.set(code, {
+      code,
+      deviceId: input.parentDeviceId,
+      deviceName: input.deviceName || 'Parent Device',
+      deviceType: 'parent',
+      timestamp: Date.now(),
+      expiresAt: expiresAtTimestamp,
+    });
+    
+    setTimeout(() => {
+      pairingStore.delete(code);
+      console.log('[Backend] Parent pairing code expired:', code);
+    }, 5 * 60 * 1000);
     
     const pairingData = {
       code,
       parentDeviceId: input.parentDeviceId,
       deviceName: input.deviceName || 'Parent Device',
-      expiresAt: expiresAt.toISOString(),
+      expiresAt: new Date(expiresAtTimestamp).toISOString(),
       createdAt: new Date().toISOString(),
     };
     
-    console.log('[Backend] Generated pairing code:', code);
+    console.log('[Backend] Generated parent pairing code:', code);
     
     return pairingData;
   });

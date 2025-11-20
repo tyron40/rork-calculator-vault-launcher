@@ -17,6 +17,7 @@ import {
   LogOut
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
+import { trpc } from '@/lib/trpc';
 import { 
   getConnectedDevices, 
   saveConnectedDevices, 
@@ -76,6 +77,13 @@ export default function ParentDashboardScreen() {
 
   useEffect(() => {
     loadConnectedDevices();
+    
+    const interval = setInterval(() => {
+      console.log('[ParentDashboard] Polling for new paired devices...');
+      loadConnectedDevices();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadConnectedDevices = async () => {
@@ -134,13 +142,22 @@ export default function ParentDashboardScreen() {
     );
   };
 
+  const generateCodeMutation = trpc.pairing.generateCode.useMutation();
+
   const handleGenerateCode = useCallback(async () => {
     setIsGeneratingCode(true);
     try {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      setGeneratedCode(code);
+      const parentId = await AsyncStorage.getItem('parent_device_id') || `parent_${Date.now()}`;
+      await AsyncStorage.setItem('parent_device_id', parentId);
       
-      console.log('[ParentDashboard] Generated pairing code:', code);
+      const result = await generateCodeMutation.mutateAsync({
+        parentDeviceId: parentId,
+        deviceName: 'Parent Device',
+      });
+      
+      setGeneratedCode(result.code);
+      
+      console.log('[ParentDashboard] Generated pairing code:', result.code);
       
       setTimeout(() => {
         setGeneratedCode('');
@@ -153,7 +170,9 @@ export default function ParentDashboardScreen() {
     } finally {
       setIsGeneratingCode(false);
     }
-  }, []);
+  }, [generateCodeMutation]);
+
+  const verifyCodeMutation = trpc.pairing.verifyCode.useMutation();
 
   const handlePairDevice = async () => {
     if (!pairingCode.trim()) {
@@ -163,13 +182,23 @@ export default function ParentDashboardScreen() {
 
     try {
       setIsLoading(true);
-      console.log('[ParentDashboard] Pairing with code:', pairingCode);
+      console.log('[ParentDashboard] Verifying pairing code:', pairingCode);
+      
+      const parentId = await AsyncStorage.getItem('parent_device_id') || `parent_${Date.now()}`;
+      await AsyncStorage.setItem('parent_device_id', parentId);
+      
+      const result = await verifyCodeMutation.mutateAsync({
+        code: pairingCode,
+        parentDeviceId: parentId,
+      });
+      
+      console.log('[ParentDashboard] Verification result:', result);
       
       const newDevice: ConnectedDevice = {
-        id: `device_${Date.now()}`,
-        name: 'Child Device',
-        deviceId: `child_${pairingCode}`,
-        childName: 'Child',
+        id: result.childDeviceId || `device_${Date.now()}`,
+        name: result.childName || 'Child Device',
+        deviceId: result.childDeviceId || `child_${pairingCode}`,
+        childName: result.childName || 'Child',
         lastSeen: new Date().toISOString(),
         isOnline: true,
         monitoringActive: false,
@@ -185,12 +214,12 @@ export default function ParentDashboardScreen() {
       
       Alert.alert(
         'Device Paired',
-        `Successfully connected to child device!\n\nYou can now monitor this device.`,
+        `Successfully connected to ${newDevice.childName}!\n\nYou can now monitor this device.`,
         [{ text: 'OK' }]
       );
     } catch (error) {
       console.error('[ParentDashboard] Error pairing device:', error);
-      Alert.alert('Error', 'Failed to pair device');
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to pair device');
     } finally {
       setIsLoading(false);
     }

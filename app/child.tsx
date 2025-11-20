@@ -109,6 +109,8 @@ export default function ChildDashboardScreen() {
 
 
 
+  const storePairingMutation = trpc.pairing.storePairingCode.useMutation();
+
   const generatePairingCode = async () => {
     setIsGeneratingCode(true);
     try {
@@ -118,6 +120,15 @@ export default function ChildDashboardScreen() {
       const childName = consentData.childName || 'Child Device';
       
       await AsyncStorage.setItem('device_id', deviceId);
+      
+      console.log('[ChildDashboard] Storing pairing code in backend:', code);
+      await storePairingMutation.mutateAsync({
+        code,
+        deviceId,
+        deviceName: childName,
+        deviceType: 'child',
+      });
+      
       await AsyncStorage.setItem('child_pairing_code', code);
       await AsyncStorage.setItem('child_pairing_code_timestamp', Date.now().toString());
       
@@ -140,6 +151,8 @@ export default function ChildDashboardScreen() {
     }
   };
 
+  const pairMutation = trpc.pairing.pairDevice.useMutation();
+
   const handleSubmitCode = async () => {
     if (!inputCode.trim() || inputCode.length !== 6) {
       Alert.alert('Invalid Code', 'Please enter a 6-character pairing code from the parent device');
@@ -148,17 +161,32 @@ export default function ChildDashboardScreen() {
 
     try {
       setConnectionStatus('connecting');
-      console.log('[ChildDashboard] Submitting pairing code:', inputCode);
+      console.log('[ChildDashboard] Submitting pairing code to backend:', inputCode);
       
-      const parentId = `parent_${inputCode}_${Date.now()}`;
+      const deviceId = await AsyncStorage.getItem('device_id') || `child_${Date.now()}`;
+      await AsyncStorage.setItem('device_id', deviceId);
+      
+      const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
+      const childName = consentData.childName || 'Child Device';
+      
+      const result = await pairMutation.mutateAsync({
+        code: inputCode,
+        childDeviceId: deviceId,
+        childName: childName,
+      });
+      
+      console.log('[ChildDashboard] Backend pairing result:', result);
+      
+      const parentId = result.parentDeviceId || `parent_${inputCode}_${Date.now()}`;
+      const parentName = result.parentDeviceName || 'Parent Device';
       
       await AsyncStorage.setItem('child_monitoring_parent_id', parentId);
-      await AsyncStorage.setItem('parent_device_name', 'Parent Device');
+      await AsyncStorage.setItem('parent_device_name', parentName);
       await AsyncStorage.setItem('child_monitoring_active', 'true');
       
       setParentDeviceId(parentId);
       setIsPaired(true);
-      setParentDeviceName('Parent Device');
+      setParentDeviceName(parentName);
       setConnectionStatus('connected');
       setInputCode('');
       
@@ -172,7 +200,7 @@ export default function ChildDashboardScreen() {
     } catch (error) {
       console.error('[ChildDashboard] Error pairing device:', error);
       setConnectionStatus('disconnected');
-      Alert.alert('Pairing Failed', 'Failed to pair with parent device. Please try again.');
+      Alert.alert('Pairing Failed', error instanceof Error ? error.message : 'Failed to pair with parent device. Please try again.');
     }
   };
 
