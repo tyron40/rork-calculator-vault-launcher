@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure } from '../../../create-context';
-import { pairingStore } from '../verifyCode/route';
+import { pairingStore, pairedDevicesStore, PairedDevice } from '../verifyCode/route';
 
 export const pairDeviceProcedure = publicProcedure
   .input(z.object({
@@ -29,6 +29,23 @@ export const pairDeviceProcedure = publicProcedure
     }
     
     console.log('[tRPC] Pairing successful - Child paired with:', pairing.deviceName);
+    
+    const pairedDevice: PairedDevice = {
+      id: `paired_${Date.now()}`,
+      parentDeviceId: pairing.deviceId,
+      childDeviceId: input.childDeviceId,
+      childName: input.childName,
+      deviceName: input.childName,
+      pairedAt: new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+      isOnline: true,
+    };
+    
+    const existingDevices = pairedDevicesStore.get(pairing.deviceId) || [];
+    const updatedDevices = [...existingDevices, pairedDevice];
+    pairedDevicesStore.set(pairing.deviceId, updatedDevices);
+    
+    console.log('[tRPC] Stored paired device. Total devices for parent:', updatedDevices.length);
     
     return {
       success: true,

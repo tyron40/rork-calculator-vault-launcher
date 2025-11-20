@@ -140,9 +140,16 @@ export const useVaultStore = create<VaultState>((set) => ({
   
   addConnectedDevice: (device: ConnectedDevice) => {
     console.log('[VaultStore] Adding connected device:', device.id);
-    set((state) => ({
-      connectedDevices: [...state.connectedDevices, device],
-    }));
+    set((state) => {
+      const exists = state.connectedDevices.some(d => d.id === device.id);
+      if (exists) {
+        console.log('[VaultStore] Device already exists, skipping:', device.id);
+        return state;
+      }
+      return {
+        connectedDevices: [...state.connectedDevices, device],
+      };
+    });
   },
   
   removeConnectedDevice: (deviceId: string) => {

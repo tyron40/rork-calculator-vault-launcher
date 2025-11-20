@@ -10,7 +10,19 @@ type PairingData = {
   expiresAt: number;
 };
 
+type PairedDevice = {
+  id: string;
+  parentDeviceId: string;
+  childDeviceId: string;
+  childName: string;
+  deviceName: string;
+  pairedAt: string;
+  lastSeen: string;
+  isOnline: boolean;
+};
+
 const pairingStore = new Map<string, PairingData>();
+const pairedDevicesStore = new Map<string, PairedDevice[]>();
 
 export const verifyCodeProcedure = publicProcedure
   .input(
@@ -41,6 +53,23 @@ export const verifyCodeProcedure = publicProcedure
     
     console.log('[Backend] Pairing successful - Parent paired with:', pairing.deviceName);
     
+    const pairedDevice: PairedDevice = {
+      id: `paired_${Date.now()}`,
+      parentDeviceId: input.parentDeviceId,
+      childDeviceId: pairing.deviceId,
+      childName: pairing.deviceName,
+      deviceName: pairing.deviceName,
+      pairedAt: new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+      isOnline: true,
+    };
+    
+    const existingDevices = pairedDevicesStore.get(input.parentDeviceId) || [];
+    const updatedDevices = [...existingDevices, pairedDevice];
+    pairedDevicesStore.set(input.parentDeviceId, updatedDevices);
+    
+    console.log('[Backend] Stored paired device. Total devices for parent:', updatedDevices.length);
+    
     return {
       success: true,
       childDeviceId: pairing.deviceId,
@@ -49,5 +78,5 @@ export const verifyCodeProcedure = publicProcedure
     };
   });
 
-export { pairingStore }
-export type { PairingData }
+export { pairingStore, pairedDevicesStore }
+export type { PairingData, PairedDevice }

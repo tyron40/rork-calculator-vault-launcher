@@ -75,24 +75,58 @@ export default function ParentDashboardScreen() {
     initializeParent();
   }, []);
 
+  const [parentDeviceId, setParentDeviceIdState] = useState<string>('');
+
+  const getPairedDevicesQuery = trpc.pairing.getPairedDevices.useQuery(
+    { parentDeviceId },
+    {
+      enabled: !!parentDeviceId,
+      refetchInterval: 3000,
+    }
+  );
+
   useEffect(() => {
-    loadConnectedDevices();
-    
-    const interval = setInterval(() => {
-      console.log('[ParentDashboard] Polling for new paired devices...');
-      loadConnectedDevices();
-    }, 5000);
-    
-    return () => clearInterval(interval);
+    const loadParentId = async () => {
+      const id = await AsyncStorage.getItem('parent_device_id');
+      if (id) {
+        console.log('[ParentDashboard] Loaded parent device ID:', id);
+        setParentDeviceIdState(id);
+      }
+    };
+    loadParentId();
   }, []);
 
-  const loadConnectedDevices = async () => {
+  useEffect(() => {
+    if (getPairedDevicesQuery.data) {
+      const backendDevices = getPairedDevicesQuery.data.devices || [];
+      console.log('[ParentDashboard] Received backend devices:', backendDevices.length);
+      
+      backendDevices.forEach((backendDevice: any) => {
+        const device: ConnectedDevice = {
+          id: backendDevice.id,
+          name: backendDevice.deviceName,
+          deviceId: backendDevice.childDeviceId,
+          childName: backendDevice.childName,
+          lastSeen: backendDevice.lastSeen,
+          isOnline: backendDevice.isOnline,
+          monitoringActive: false,
+        };
+        addConnectedDevice(device);
+      });
+    }
+  }, [getPairedDevicesQuery.data]);
+
+  useEffect(() => {
+    loadLocalDevices();
+  }, []);
+
+  const loadLocalDevices = async () => {
     try {
-      const devices = await getConnectedDevices();
-      console.log('[ParentDashboard] Loaded devices:', devices.length);
-      devices.forEach(device => addConnectedDevice(device));
+      const localDevices = await getConnectedDevices();
+      console.log('[ParentDashboard] Loading local devices:', localDevices.length);
+      localDevices.forEach(device => addConnectedDevice(device));
     } catch (error) {
-      console.error('[ParentDashboard] Error loading devices:', error);
+      console.error('[ParentDashboard] Error loading local devices:', error);
     }
   };
 
