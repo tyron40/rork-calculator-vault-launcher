@@ -12,10 +12,10 @@ export default function SetupScreen() {
   const router = useRouter();
   const { setLocked, setCurrentPin, setUserRole: setStoreUserRole } = useVaultStore();
   const [userRole, setUserRole] = useState<UserRole>(null);
-  const [parentPin, setParentPin] = useState<string>('');
-  const [confirmParentPin, setConfirmParentPin] = useState<string>('');
-  const [childPin, setChildPin] = useState<string>('');
-  const [confirmChildPin, setConfirmChildPin] = useState<string>('');
+  const [parentPin, setParentPin] = useState<string>('0000');
+  const [confirmParentPin, setConfirmParentPin] = useState<string>('0000');
+  const [childPin, setChildPin] = useState<string>('0000');
+  const [confirmChildPin, setConfirmChildPin] = useState<string>('0000');
   const [pairingCode, setPairingCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -63,11 +63,6 @@ export default function SetupScreen() {
 
       if (trimmedChildPin !== trimmedConfirmChildPin) {
         Alert.alert('PIN Mismatch', 'Child PINs do not match');
-        return;
-      }
-
-      if (trimmedParentPin === trimmedChildPin) {
-        Alert.alert('Invalid PINs', 'Parent and child PINs must be different');
         return;
       }
     } else {
@@ -338,9 +333,10 @@ export default function SetupScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              💡 {userRole === 'parent' 
-                ? 'Remember both PINs! Parent PIN opens monitoring, child PIN opens calculator only.'
-                : 'Remember your PIN! To unlock, type it on the calculator and press ='}
+              💡 Default PIN is &quot;0000&quot; for all devices.
+              {userRole === 'parent' 
+                ? ' You can change both PINs if needed. Parent PIN opens monitoring, child PIN opens calculator only.'
+                : ' You can change the PIN if needed. To unlock, type it on the calculator and press ='}
             </Text>
           </View>
         </View>
