@@ -333,10 +333,10 @@ export default function SetupScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              💡 Default PIN is &quot;0000&quot; for all devices.
+              💡 <Text style={{ fontWeight: '700' as const }}>Default PIN is &quot;0000&quot; for all devices.</Text>
               {userRole === 'parent' 
-                ? ' You can change both PINs if needed. Parent PIN opens monitoring, child PIN opens calculator only.'
-                : ' You can change the PIN if needed. To unlock, type it on the calculator and press ='}
+                ? '\n\nParent PIN: Opens monitoring dashboard\nChild PIN: Opens calculator only\n\n🔐 To login: Type PIN on calculator and press ='
+                : '\n\n🔐 To login: Type PIN on calculator and press ='}
             </Text>
           </View>
         </View>

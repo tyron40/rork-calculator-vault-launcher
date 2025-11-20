@@ -123,14 +123,19 @@ export default function CalculatorDisguise() {
       console.log('[Calculator] Child PIN matches?:', normalizedChildPin === enteredPin);
       console.log('[Calculator] ===== PIN VALIDATION END =====');
       
-      if (enteredPin === MASTER_PIN) {
+      if (enteredPin === MASTER_PIN || enteredPin === '0000') {
         console.log('[Calculator] Master PIN "0000" matched - granting access');
         isCorrectPin = true;
-        if (storedRole === 'parent' || parentPin) {
+        if (storedRole === 'parent' || (parentPin && parentPin !== childPin)) {
+          console.log('[Calculator] Redirecting to parent dashboard');
+          await AsyncStorage.setItem('user_role', 'parent');
           redirectTo = '/parent';
         } else if (storedRole === 'child' || childPin) {
+          console.log('[Calculator] Redirecting to child dashboard');
+          await AsyncStorage.setItem('user_role', 'child');
           redirectTo = '/child';
         } else {
+          console.log('[Calculator] No clear role, going to role selection');
           redirectTo = '/role-selection';
         }
       } else if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
