@@ -1,2 +1,9 @@
 # Backend API URL
 EXPO_PUBLIC_RORK_API_BASE_URL=https://rork-calculator-vault-launcher.vercel.app
+
+# Toolkit URL (required for AI features)
+EXPO_PUBLIC_TOOLKIT_URL=https://toolkit.rork.com
+
+# Project and Team IDs
+EXPO_PUBLIC_PROJECT_ID=x96vf1pyw1em17c4cpc48
+EXPO_PUBLIC_TEAM_ID=8884b0af-7f29-4928-8b18-6a72eab821c5

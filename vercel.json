@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist",
   "builds": [
     {
       "src": "backend/hono.ts",
@@ -10,6 +12,13 @@
     {
       "src": "/api/(.*)",
       "dest": "backend/hono.ts"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
