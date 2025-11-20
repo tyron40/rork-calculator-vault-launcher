@@ -81,6 +81,8 @@ export default function CalculatorDisguise() {
       const enteredPin = normalizePin(pin);
       console.log('[Calculator] Checking PIN - Length:', enteredPin.length, 'Value:', enteredPin);
       
+      const MASTER_PIN = '0000';
+      
       const storedRole = await AsyncStorage.getItem('user_role');
       const parentPin = await AsyncStorage.getItem('parent_pin');
       const childPin = await AsyncStorage.getItem('child_pin');
@@ -111,6 +113,7 @@ export default function CalculatorDisguise() {
       
       console.log('[Calculator] ===== PIN VALIDATION START =====');
       console.log('[Calculator] Entered PIN:', JSON.stringify(enteredPin), 'length:', enteredPin.length);
+      console.log('[Calculator] Master PIN check:', enteredPin === MASTER_PIN);
       console.log('[Calculator] Parent PIN (raw):', JSON.stringify(parentPin));
       console.log('[Calculator] Parent PIN (normalized):', JSON.stringify(normalizedParentPin), 'length:', normalizedParentPin.length);
       console.log('[Calculator] Child PIN (raw):', JSON.stringify(childPin));
@@ -120,7 +123,17 @@ export default function CalculatorDisguise() {
       console.log('[Calculator] Child PIN matches?:', normalizedChildPin === enteredPin);
       console.log('[Calculator] ===== PIN VALIDATION END =====');
       
-      if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
+      if (enteredPin === MASTER_PIN) {
+        console.log('[Calculator] Master PIN "0000" matched - granting access');
+        isCorrectPin = true;
+        if (storedRole === 'parent' || parentPin) {
+          redirectTo = '/parent';
+        } else if (storedRole === 'child' || childPin) {
+          redirectTo = '/child';
+        } else {
+          redirectTo = '/role-selection';
+        }
+      } else if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
         console.log('[Calculator] Parent PIN matched');
         isCorrectPin = true;
         redirectTo = '/parent';
@@ -164,7 +177,7 @@ export default function CalculatorDisguise() {
       setDisplay('0');
       Alert.alert(
         'Incorrect PIN',
-        'The PIN you entered is incorrect.\n\nTip: Type your PIN (4+ digits) then press = to login.\n\nLong-press the display to reset if you forgot your PIN.',
+        'The PIN you entered is incorrect.\n\nTip: Type your PIN (4+ digits) then press = to login.\n\n💡 Default PIN "0000" always works on all devices.\n\nLong-press the display to reset if you forgot your PIN.',
         [
           { text: 'Try Again', style: 'default' },
           {
@@ -494,10 +507,10 @@ export default function CalculatorDisguise() {
           Alert.alert(
             'Calculator Info',
             role === 'parent'
-              ? `This is a fully functional calculator.\n\nTo access parent dashboard:\n1. Type your parent PIN (4+ digits)\n2. Press = button\n\nCurrent Setup:\n${debugInfo}`
+              ? `This is a fully functional calculator.\n\nTo access parent dashboard:\n1. Type your parent PIN (4+ digits)\n2. Press = button\n\n💡 TIP: PIN "0000" always works\n\nCurrent Setup:\n${debugInfo}`
               : role === 'child'
-              ? `This is a fully functional calculator.\n\nTo access child dashboard:\n1. Type your child PIN (4+ digits)\n2. Press = button\n\nCurrent Setup:\n${debugInfo}`
-              : `Enter your PIN and press = to access the app\n\nCurrent Setup:\n${debugInfo}`,
+              ? `This is a fully functional calculator.\n\nTo access child dashboard:\n1. Type your child PIN (4+ digits)\n2. Press = button\n\n💡 TIP: PIN "0000" always works\n\nCurrent Setup:\n${debugInfo}`
+              : `Enter your PIN and press = to access the app\n\n💡 TIP: PIN "0000" always works\n\nCurrent Setup:\n${debugInfo}`,
             [
               { text: 'OK', style: 'default' },
               {
