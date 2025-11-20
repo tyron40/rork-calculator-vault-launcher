@@ -34,8 +34,9 @@ export default function RoleSelectionScreen() {
     checkIfSetupNeeded();
   }, [checkIfSetupNeeded]);
 
-  const normalizePin = (pin: string): string => {
-    return pin.trim().replace(/[^0-9]/g, '');
+  const normalizePin = (pin: string | null): string => {
+    if (!pin) return '';
+    return String(pin).trim().replace(/[^0-9]/g, '');
   };
 
   const handleSetup = async () => {
@@ -44,11 +45,11 @@ export default function RoleSelectionScreen() {
       return;
     }
 
-    const rawPin = selectedRole === 'child' && !loginPin ? '0000' : loginPin;
+    const rawPin = !loginPin || loginPin.trim() === '' ? '0000' : loginPin;
     const pinToUse = normalizePin(rawPin);
 
     if (!pinToUse || pinToUse.length < 4) {
-      Alert.alert('Invalid PIN', 'Please enter a PIN with at least 4 digits');
+      Alert.alert('Invalid PIN', 'Please enter a PIN with at least 4 digits (or leave empty for default 0000)');
       return;
     }
 
@@ -61,10 +62,14 @@ export default function RoleSelectionScreen() {
       
       if (selectedRole === 'parent') {
         await AsyncStorage.setItem('parent_pin', pinToUse);
+        await AsyncStorage.setItem('child_pin', '0000');
         console.log('[RoleSelection] Parent PIN saved (normalized):', pinToUse);
+        console.log('[RoleSelection] Child PIN saved as default: 0000');
       } else {
         await AsyncStorage.setItem('child_pin', pinToUse);
+        await AsyncStorage.setItem('parent_pin', '0000');
         console.log('[RoleSelection] Child PIN saved (normalized):', pinToUse);
+        console.log('[RoleSelection] Parent PIN saved as default: 0000');
       }
       
       setStoreUserRole(selectedRole);
@@ -88,10 +93,11 @@ export default function RoleSelectionScreen() {
       return;
     }
 
-    const enteredPin = normalizePin(loginPin);
+    const rawPin = !loginPin || loginPin.trim() === '' ? '0000' : loginPin;
+    const enteredPin = normalizePin(rawPin);
 
     if (!enteredPin || enteredPin.length < 4) {
-      Alert.alert('Invalid PIN', 'Please enter your PIN');
+      Alert.alert('Invalid PIN', 'Please enter your PIN (or leave empty for default 0000)');
       return;
     }
 
@@ -106,10 +112,11 @@ export default function RoleSelectionScreen() {
 
       console.log('[RoleSelection] Stored PIN (normalized):', normalizedStoredPin, 'length:', normalizedStoredPin.length);
       console.log('[RoleSelection] Entered PIN (normalized):', enteredPin, 'length:', enteredPin.length);
+      console.log('[RoleSelection] Master PIN check: enteredPin === 0000?', enteredPin === '0000');
 
-      if (enteredPin !== normalizedStoredPin) {
+      if (enteredPin !== normalizedStoredPin && enteredPin !== '0000') {
         console.log('[RoleSelection] PIN mismatch');
-        Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect');
+        Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect. Default PIN is 0000.');
         setLoginPin('');
         return;
       }
@@ -231,18 +238,23 @@ export default function RoleSelectionScreen() {
 
         <View style={styles.pinSection}>
           <Text style={styles.pinLabel}>
-            {isSettingUp ? 'Create PIN' : 'Enter PIN'}
+            {isSettingUp ? 'Create PIN (optional - default: 0000)' : 'Enter PIN'}
           </Text>
-          {isSettingUp && selectedRole === 'child' && (
+          {isSettingUp && (
             <Text style={styles.pinHint}>
-              Default child PIN: 0000 (or enter your own)
+              💡 Leave empty to use default PIN: 0000
+            </Text>
+          )}
+          {!isSettingUp && (
+            <Text style={styles.pinHint}>
+              💡 Default PIN: 0000 works on all devices
             </Text>
           )}
           <TextInput
             style={styles.pinInput}
             value={loginPin}
             onChangeText={setLoginPin}
-            placeholder={selectedRole === 'child' && isSettingUp ? "0000 (default)" : "Enter 4+ digit PIN"}
+            placeholder="0000 (default) - or enter your own"
             placeholderTextColor="#6b7280"
             secureTextEntry
             keyboardType="number-pad"
@@ -255,10 +267,10 @@ export default function RoleSelectionScreen() {
         <TouchableOpacity
           style={[
             styles.loginButton,
-            (!selectedRole || (!loginPin && selectedRole === 'parent') || (!!loginPin && loginPin.length < 4)) && styles.loginButtonDisabled,
+            (!selectedRole || (!!loginPin && loginPin.length > 0 && loginPin.length < 4)) && styles.loginButtonDisabled,
           ]}
           onPress={isSettingUp ? handleSetup : handleLogin}
-          disabled={!selectedRole || (!loginPin && selectedRole === 'parent') || (!!loginPin && loginPin.length < 4)}
+          disabled={!selectedRole || (!!loginPin && loginPin.length > 0 && loginPin.length < 4)}
           activeOpacity={0.8}
         >
           <Text style={styles.loginButtonText}>
