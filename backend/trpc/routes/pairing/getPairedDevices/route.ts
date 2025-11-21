@@ -1,6 +1,6 @@
 import { publicProcedure } from "../../../create-context";
 import { z } from "zod";
-import { pairedDevicesStore } from '../verifyCode/route';
+import { getGlobalStore } from '../storage';
 
 export const getPairedDevicesProcedure = publicProcedure
   .input(
@@ -9,14 +9,20 @@ export const getPairedDevicesProcedure = publicProcedure
     })
   )
   .query(async ({ input }) => {
-    console.log('[Backend] Getting paired devices for:', input.parentDeviceId);
-    
-    const devices = pairedDevicesStore.get(input.parentDeviceId) || [];
-    
-    console.log('[Backend] Found devices:', devices.length);
-    
-    return {
-      devices,
-      total: devices.length,
-    };
+    try {
+      console.log('[Backend] Getting paired devices for:', input.parentDeviceId);
+      
+      const store = getGlobalStore();
+      const devices = store.pairedDevicesStore.get(input.parentDeviceId) || [];
+      
+      console.log('[Backend] Found devices:', devices.length);
+      
+      return {
+        devices,
+        total: devices.length,
+      };
+    } catch (error) {
+      console.error('[Backend] Error in getPairedDevices:', error);
+      throw new Error('Failed to get paired devices: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
   });
