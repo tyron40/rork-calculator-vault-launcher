@@ -29,6 +29,7 @@ const getBaseUrl = () => {
 };
 
 export const trpcClient = trpc.createClient({
+  transformer: superjson,
   links: [
     loggerLink({
       enabled: (opts) =>
@@ -37,7 +38,6 @@ export const trpcClient = trpc.createClient({
     }),
     httpLink({
       url: `${getBaseUrl()}/api/trpc`,
-      transformer: superjson,
       fetch: (url, options) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);

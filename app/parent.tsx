@@ -82,6 +82,7 @@ export default function ParentDashboardScreen() {
     {
       enabled: !!parentDeviceId,
       refetchInterval: 3000,
+      queryKey: ['pairing.getPairedDevices', { parentDeviceId }],
     }
   );
 
