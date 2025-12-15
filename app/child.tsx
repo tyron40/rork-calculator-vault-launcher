@@ -14,7 +14,8 @@ import {
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { trpc } from '@/lib/trpc';
+import { apiClient } from '@/lib/api-client';
+import { useMutation } from '@tanstack/react-query';
 
 export default function ChildDashboardScreen() {
   const router = useRouter();
@@ -28,11 +29,7 @@ export default function ChildDashboardScreen() {
   const pulseAnim = useState(new Animated.Value(1))[0];
   
   const { 
-    isLocked,
-    currentPin,
-    userRole,
     setParentDeviceId,
-    setLocked,
     setCurrentPin,
     setUserRole: setStoreUserRole,
   } = useVaultStore();
@@ -61,7 +58,7 @@ export default function ChildDashboardScreen() {
     };
     
     initializeChild();
-  }, []);
+  }, [router, setCurrentPin, setStoreUserRole]);
 
   const checkPairingStatus = useCallback(async () => {
     try {
@@ -109,7 +106,12 @@ export default function ChildDashboardScreen() {
 
 
 
-  const storePairingMutation = trpc.pairing.storePairingCode.useMutation();
+  const storePairingMutation = useMutation({
+    mutationFn: async (params: { code: string; deviceId: string; deviceName: string; deviceType: 'parent' | 'child' }) => {
+      const response = await apiClient.pairing.storePairingCode(params.code, params.deviceId, params.deviceName, params.deviceType);
+      return response.result.data.json;
+    },
+  });
 
   const generatePairingCode = async () => {
     setIsGeneratingCode(true);
@@ -151,7 +153,12 @@ export default function ChildDashboardScreen() {
     }
   };
 
-  const pairMutation = trpc.pairing.pairDevice.useMutation();
+  const pairMutation = useMutation({
+    mutationFn: async (params: { code: string; childDeviceId: string; childName: string }) => {
+      const response = await apiClient.pairing.pairDevice(params.code, params.childDeviceId, params.childName);
+      return response.result.data.json;
+    },
+  });
 
   const handleSubmitCode = async () => {
     if (!inputCode.trim() || inputCode.length !== 6) {

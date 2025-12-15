@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { 
@@ -16,14 +16,14 @@ import {
   Calculator,
   LogOut
 } from 'lucide-react-native';
-import { useVaultStore } from '@/store/vaultStore';
-import { trpc } from '@/lib/trpc';
+import { useVaultStore, ConnectedDevice } from '@/store/vaultStore';
+import { apiClient } from '@/lib/api-client';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { 
   getConnectedDevices, 
   saveConnectedDevices, 
   sendCommandToChild 
 } from '@/services/connection';
-import { ConnectedDevice } from '@/store/vaultStore';
 
 export default function ParentDashboardScreen() {
   const router = useRouter();
@@ -35,9 +35,6 @@ export default function ParentDashboardScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
   const { 
-    isLocked,
-    currentPin,
-    userRole,
     connectedDevices,
     selectedDeviceId,
     addConnectedDevice,
@@ -73,18 +70,19 @@ export default function ParentDashboardScreen() {
     };
     
     initializeParent();
-  }, []);
+  }, [router, setCurrentPin, setStoreUserRole]);
 
   const [parentDeviceId, setParentDeviceIdState] = useState<string>('');
 
-  const getPairedDevicesQuery = trpc.pairing.getPairedDevices.useQuery(
-    { parentDeviceId },
-    {
-      enabled: !!parentDeviceId,
-      refetchInterval: 3000,
-      queryKey: ['pairing.getPairedDevices', { parentDeviceId }],
-    }
-  );
+  const getPairedDevicesQuery = useQuery({
+    queryKey: ['pairing.getPairedDevices', parentDeviceId],
+    queryFn: async () => {
+      const response = await apiClient.pairing.getPairedDevices(parentDeviceId);
+      return response.result.data.json;
+    },
+    enabled: !!parentDeviceId,
+    refetchInterval: 3000,
+  });
 
   useEffect(() => {
     const loadParentId = async () => {
@@ -96,6 +94,16 @@ export default function ParentDashboardScreen() {
     };
     loadParentId();
   }, []);
+
+  const loadLocalDevices = useCallback(async () => {
+    try {
+      const localDevices = await getConnectedDevices();
+      console.log('[ParentDashboard] Loading local devices:', localDevices.length);
+      localDevices.forEach(device => addConnectedDevice(device));
+    } catch (error) {
+      console.error('[ParentDashboard] Error loading local devices:', error);
+    }
+  }, [addConnectedDevice]);
 
   useEffect(() => {
     if (getPairedDevicesQuery.data) {
@@ -115,21 +123,11 @@ export default function ParentDashboardScreen() {
         addConnectedDevice(device);
       });
     }
-  }, [getPairedDevicesQuery.data]);
+  }, [getPairedDevicesQuery.data, addConnectedDevice]);
 
   useEffect(() => {
     loadLocalDevices();
-  }, []);
-
-  const loadLocalDevices = async () => {
-    try {
-      const localDevices = await getConnectedDevices();
-      console.log('[ParentDashboard] Loading local devices:', localDevices.length);
-      localDevices.forEach(device => addConnectedDevice(device));
-    } catch (error) {
-      console.error('[ParentDashboard] Error loading local devices:', error);
-    }
-  };
+  }, [loadLocalDevices]);
 
   const handleLock = () => {
     setLocked(true);
@@ -177,7 +175,13 @@ export default function ParentDashboardScreen() {
     );
   };
 
-  const generateCodeMutation = trpc.pairing.generateCode.useMutation();
+  const generateCodeMutation = useMutation({
+    mutationFn: async (params: { parentDeviceId: string; deviceName: string }) => {
+      return await apiClient.pairing.generateCode(params.parentDeviceId, params.deviceName);
+    },
+  });
+
+  const { mutateAsync: generateCodeMutateAsync } = generateCodeMutation;
 
   const handleGenerateCode = useCallback(async () => {
     setIsGeneratingCode(true);
@@ -185,10 +189,14 @@ export default function ParentDashboardScreen() {
       const parentId = await AsyncStorage.getItem('parent_device_id') || `parent_${Date.now()}`;
       await AsyncStorage.setItem('parent_device_id', parentId);
       
-      const result = await generateCodeMutation.mutateAsync({
+      const result = await generateCodeMutateAsync({
         parentDeviceId: parentId,
         deviceName: 'Parent Device',
       });
+      
+      if (!result) {
+        throw new Error('Failed to generate code');
+      }
       
       setGeneratedCode(result.code);
       
@@ -205,9 +213,14 @@ export default function ParentDashboardScreen() {
     } finally {
       setIsGeneratingCode(false);
     }
-  }, [generateCodeMutation]);
+  }, [generateCodeMutateAsync]);
 
-  const verifyCodeMutation = trpc.pairing.verifyCode.useMutation();
+  const verifyCodeMutation = useMutation({
+    mutationFn: async (params: { code: string; parentDeviceId: string }) => {
+      const response = await apiClient.pairing.verifyCode(params.code, params.parentDeviceId);
+      return response.result.data.json;
+    },
+  });
 
   const handlePairDevice = async () => {
     if (!pairingCode.trim()) {

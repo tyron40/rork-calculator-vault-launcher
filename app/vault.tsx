@@ -11,7 +11,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   startAudioMonitoring, 
   stopAudioMonitoring, 
-  isAudioMonitoringActive,
   logActivity 
 } from '@/services/monitoring';
 
@@ -37,7 +36,7 @@ export default function VaultScreen() {
     if (isLocked || !currentPin) {
       router.replace('/');
     }
-  }, [isLocked, currentPin]);
+  }, [isLocked, currentPin, router]);
 
   const handleLock = () => {
     setLocked(true);

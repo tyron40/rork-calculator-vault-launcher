@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -59,6 +59,20 @@ export default function LiveMonitoringScreen() {
 
   const selectedDevice = connectedDevices.find(d => d.id === selectedDeviceId);
 
+  const loadStreamData = useCallback(async () => {
+    if (!selectedDevice) return;
+    
+    try {
+      const audio = await getAudioStream(selectedDevice.deviceId);
+      const camera = await getCameraStream(selectedDevice.deviceId);
+      
+      setAudioChunks(audio);
+      setCameraSnapshots(camera);
+    } catch (error) {
+      console.error('[LiveMonitoring] Error loading stream data:', error);
+    }
+  }, [selectedDevice]);
+
   useEffect(() => {
     if (!selectedDeviceId || !selectedDevice) {
       router.back();
@@ -90,7 +104,7 @@ export default function LiveMonitoringScreen() {
     
     const interval = setInterval(() => {
       if (selectedDevice) {
-        loadStreamData().catch(err => 
+        loadStreamData().catch((err: Error) => 
           console.error('[LiveMonitoring] Error in auto-refresh:', err)
         );
       }
@@ -105,21 +119,7 @@ export default function LiveMonitoringScreen() {
         soundRef.current.unloadAsync();
       }
     };
-  }, [selectedDeviceId, selectedDevice, router]);
-
-  const loadStreamData = async () => {
-    if (!selectedDevice) return;
-    
-    try {
-      const audio = await getAudioStream(selectedDevice.deviceId);
-      const camera = await getCameraStream(selectedDevice.deviceId);
-      
-      setAudioChunks(audio);
-      setCameraSnapshots(camera);
-    } catch (error) {
-      console.error('[LiveMonitoring] Error loading stream data:', error);
-    }
-  };
+  }, [selectedDeviceId, selectedDevice, router, loadStreamData]);
 
   const handleToggleAudio = async () => {
     if (!selectedDevice) return;

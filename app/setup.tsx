@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Lock, Shield, QrCode } from 'lucide-react-native';
-import { useVaultStore } from '@/store/vaultStore';
+import { useVaultStore, UserRole } from '@/store/vaultStore';
 import { initializeVault } from '@/services/storage';
 import { saveConnectionConfig, generateDeviceId, getDeviceName, generatePairingCode, savePairingCode } from '@/services/connection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserRole } from '@/store/vaultStore';
 
 export default function SetupScreen() {
   const router = useRouter();
@@ -16,7 +15,7 @@ export default function SetupScreen() {
   const [confirmParentPin, setConfirmParentPin] = useState<string>('0000');
   const [childPin, setChildPin] = useState<string>('0000');
   const [confirmChildPin, setConfirmChildPin] = useState<string>('0000');
-  const [pairingCode, setPairingCode] = useState<string>('');
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -77,10 +76,6 @@ export default function SetupScreen() {
       if (trimmedChildPin !== trimmedConfirmChildPin) {
         Alert.alert('PIN Mismatch', 'PINs do not match');
         return;
-      }
-
-      if (!pairingCode.trim()) {
-        Alert.alert('Required', 'Please enter the pairing code from parent device (or skip for later)');
       }
     }
 
