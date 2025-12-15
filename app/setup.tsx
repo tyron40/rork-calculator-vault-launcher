@@ -315,7 +315,7 @@ export default function SetupScreen() {
               <View style={styles.pairingBox}>
                 <QrCode size={24} color="#8b5cf6" />
                 <Text style={styles.pairingText}>
-                  You'll receive a pairing code after setup to share with parent
+                  You&apos;ll receive a pairing code after setup to share with parent
                 </Text>
               </View>
             </>

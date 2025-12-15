@@ -40,7 +40,7 @@ export default function OnboardingScreen() {
         </View>
         <Text style={styles.title}>Welcome to Parental Control</Text>
         <Text style={styles.subtitle}>
-          Your parental control app with calculator disguise is ready. Here's how it works:
+          Your parental control app with calculator disguise is ready. Here&apos;s how it works:
         </Text>
       </View>
 

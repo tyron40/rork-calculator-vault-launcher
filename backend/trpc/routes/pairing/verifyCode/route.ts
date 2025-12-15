@@ -1,6 +1,6 @@
 import { publicProcedure } from "../../../create-context";
 import { z } from "zod";
-import { getGlobalStore, type PairedDevice } from '../storage';
+import { getGlobalStore, type PairedDevice } from '../../storage';
 
 export const verifyCodeProcedure = publicProcedure
   .input(

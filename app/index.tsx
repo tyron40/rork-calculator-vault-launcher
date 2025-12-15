@@ -106,7 +106,7 @@ export default function CalculatorDisguise() {
       }
       
       let isCorrectPin = false;
-      let redirectTo = '/role-selection';
+      let redirectTo: '/' | '/parent' | '/child' | '/role-selection' = '/role-selection';
       
       const normalizedParentPin = normalizePin(parentPin);
       const normalizedChildPin = normalizePin(childPin);

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure } from '../../../create-context';
-import { getGlobalStore, type PairedDevice } from '../storage';
+import { getGlobalStore, type PairedDevice } from '../../storage';
 
 export const pairDeviceProcedure = publicProcedure
   .input(z.object({
