@@ -14,8 +14,7 @@ import {
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { apiClient } from '@/lib/api-client';
-import { useMutation } from '@tanstack/react-query';
+import { trpc } from '@/lib/trpc';
 
 export default function ChildDashboardScreen() {
   const router = useRouter();
@@ -106,12 +105,7 @@ export default function ChildDashboardScreen() {
 
 
 
-  const storePairingMutation = useMutation({
-    mutationFn: async (params: { code: string; deviceId: string; deviceName: string; deviceType: 'parent' | 'child' }) => {
-      const response = await apiClient.pairing.storePairingCode(params.code, params.deviceId, params.deviceName, params.deviceType);
-      return response.result.data.json;
-    },
-  });
+  const storePairingMutation = trpc.pairing.storePairingCode.useMutation();
 
   const generatePairingCode = async () => {
     setIsGeneratingCode(true);
@@ -153,12 +147,7 @@ export default function ChildDashboardScreen() {
     }
   };
 
-  const pairMutation = useMutation({
-    mutationFn: async (params: { code: string; childDeviceId: string; childName: string }) => {
-      const response = await apiClient.pairing.pairDevice(params.code, params.childDeviceId, params.childName);
-      return response.result.data.json;
-    },
-  });
+  const pairMutation = trpc.pairing.pairDevice.useMutation();
 
   const handleSubmitCode = async () => {
     if (!inputCode.trim() || inputCode.length !== 6) {
