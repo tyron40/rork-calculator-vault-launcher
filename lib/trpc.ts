@@ -36,7 +36,7 @@ export const trpcClient = trpc.createClient({
         (opts.direction === 'down' && opts.result instanceof Error),
     }),
     httpLink({
-      url: `${getBaseUrl()}/trpc`,
+      url: `${getBaseUrl()}/api/trpc`,
       transformer: superjson,
       fetch: (url, options) => {
         const controller = new AbortController();
