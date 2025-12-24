@@ -39,6 +39,9 @@ import {
 import { getAudioStream, AudioChunk } from '@/services/audioStreaming';
 import { getCameraStream, CameraSnapshot } from '@/services/cameraMonitoring';
 import { Audio } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebRTC from '@/services/webrtc';
+import { trpc } from '@/lib/trpc';
 
 export default function LiveMonitoringScreen() {
   const router = useRouter();
@@ -56,8 +59,17 @@ export default function LiveMonitoringScreen() {
   
   const soundRef = useRef<Audio.Sound | null>(null);
   const refreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [webrtcConnected, setWebrtcConnected] = useState(false);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const signalingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [parentDeviceId, setParentDeviceId] = useState<string>('');
 
   const selectedDevice = connectedDevices.find(d => d.id === selectedDeviceId);
+  const getSignalsQuery = trpc.webrtc.getSignals.useQuery(
+    { deviceId: parentDeviceId },
+    { enabled: false, refetchInterval: false }
+  );
+  const signalMutation = trpc.webrtc.signal.useMutation();
 
   const loadStreamData = useCallback(async () => {
     if (!selectedDevice) return;
@@ -78,6 +90,14 @@ export default function LiveMonitoringScreen() {
       router.back();
       return;
     }
+
+    const loadParentId = async () => {
+      const id = await AsyncStorage.getItem('parent_device_id') || `parent_${Date.now()}`;
+      await AsyncStorage.setItem('parent_device_id', id);
+      setParentDeviceId(id);
+      console.log('[LiveMonitoring] Parent device ID:', id);
+    };
+    loadParentId();
 
     const loadData = async () => {
       if (!selectedDevice) return;
@@ -115,11 +135,97 @@ export default function LiveMonitoringScreen() {
       if (refreshInterval.current) {
         clearInterval(refreshInterval.current);
       }
+      if (signalingInterval.current) {
+        clearInterval(signalingInterval.current);
+      }
       if (soundRef.current) {
         soundRef.current.unloadAsync();
       }
+      WebRTC.cleanupWebRTC();
     };
   }, [selectedDeviceId, selectedDevice, router, loadStreamData]);
+
+  useEffect(() => {
+    if (!parentDeviceId || !selectedDevice) return;
+
+    const setupWebRTC = async () => {
+      try {
+        console.log('[LiveMonitoring] Setting up WebRTC connection');
+        
+        await WebRTC.createPeerConnection(undefined, {
+          onTrack: (event) => {
+            console.log('[LiveMonitoring] Received remote track');
+            if (event.streams && event.streams[0]) {
+              setRemoteStream(event.streams[0]);
+              setWebrtcConnected(true);
+            }
+          },
+          onIceCandidate: async (candidate) => {
+            console.log('[LiveMonitoring] Sending ICE candidate to child');
+            await signalMutation.mutateAsync({
+              type: 'ice-candidate',
+              from: parentDeviceId,
+              to: selectedDevice.deviceId,
+              data: candidate,
+              timestamp: new Date().toISOString(),
+            });
+          },
+          onConnectionStateChange: (state) => {
+            console.log('[LiveMonitoring] WebRTC connection state:', state);
+            setWebrtcConnected(state === 'connected');
+          },
+        });
+
+        const interval = setInterval(async () => {
+          try {
+            const result = await getSignalsQuery.refetch();
+            const messages = result.data?.messages || [];
+            
+            for (const message of messages) {
+              console.log('[LiveMonitoring] Processing signal:', message.type);
+              
+              if (message.type === 'offer') {
+                const answer = await WebRTC.createAnswer(message.data);
+                await signalMutation.mutateAsync({
+                  type: 'answer',
+                  from: parentDeviceId,
+                  to: selectedDevice.deviceId,
+                  data: answer,
+                  timestamp: new Date().toISOString(),
+                });
+              } else if (message.type === 'ice-candidate') {
+                await WebRTC.addIceCandidate(message.data);
+              }
+            }
+          } catch (error) {
+            console.error('[LiveMonitoring] Error processing signals:', error);
+          }
+        }, 2000);
+        
+        signalingInterval.current = interval;
+      } catch (error) {
+        console.error('[LiveMonitoring] Error setting up WebRTC:', error);
+      }
+    };
+
+    setupWebRTC();
+  }, [parentDeviceId, selectedDevice, getSignalsQuery, signalMutation]);
+
+  useEffect(() => {
+    if (remoteStream && Platform.OS !== 'web') {
+      const playAudio = async () => {
+        try {
+          const audioTracks = remoteStream.getAudioTracks();
+          if (audioTracks.length > 0) {
+            console.log('[LiveMonitoring] Playing remote audio stream');
+          }
+        } catch (error) {
+          console.error('[LiveMonitoring] Error playing audio:', error);
+        }
+      };
+      playAudio();
+    }
+  }, [remoteStream]);
 
   const handleToggleAudio = async () => {
     if (!selectedDevice) return;
@@ -353,7 +459,7 @@ export default function LiveMonitoringScreen() {
               color={selectedDevice.isOnline ? '#10b981' : '#6b7280'} 
             />
             <Text style={styles.statusText}>
-              {selectedDevice.isOnline ? 'Online' : 'Offline'}
+              {webrtcConnected ? '🔴 Live' : selectedDevice.isOnline ? 'Online' : 'Offline'}
             </Text>
           </View>
         </View>
@@ -425,7 +531,7 @@ export default function LiveMonitoringScreen() {
                 <Mic size={48} color="#4a4e69" />
               )}
               <Text style={styles.audioStatus}>
-                {isAudioActive ? 'Recording...' : 'Audio inactive'}
+                {webrtcConnected ? '🔴 Live Stream Active' : isAudioActive ? 'Recording...' : 'Audio inactive'}
               </Text>
               {audioChunks.length > 0 && (
                 <Text style={styles.audioChunks}>

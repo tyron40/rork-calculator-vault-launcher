@@ -5,6 +5,8 @@ import { verifyCodeProcedure } from "./routes/pairing/verifyCode/route";
 import { getPairedDevicesProcedure } from "./routes/pairing/getPairedDevices/route";
 import { unpairDeviceProcedure } from "./routes/pairing/unpairDevice/route";
 import { pairDeviceProcedure, storePairingCodeProcedure } from "./routes/pairing/pair/route";
+import webrtcSignalRoute from "./routes/webrtc/signal/route";
+import webrtcGetSignalsRoute from "./routes/webrtc/getSignals/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -17,6 +19,10 @@ export const appRouter = createTRPCRouter({
     unpairDevice: unpairDeviceProcedure,
     pairDevice: pairDeviceProcedure,
     storePairingCode: storePairingCodeProcedure,
+  }),
+  webrtc: createTRPCRouter({
+    signal: webrtcSignalRoute,
+    getSignals: webrtcGetSignalsRoute,
   }),
 });
 
