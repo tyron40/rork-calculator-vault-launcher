@@ -8,12 +8,16 @@
     "start-web-dev": "DEBUG=expo* bunx rork start -p x96vf1pyw1em17c4cpc48 --web --tunnel",
     "build:web": "expo export --platform web",
     "serve:web": "npx serve dist",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "server": "bun run server.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^2.0.76",
     "@expo/metro-config": "~54.0.12",
     "@expo/vector-icons": "^15.0.3",
+    "@hono/node-server": "^1.19.11",
     "@hono/trpc-server": "^0.4.0",
     "@nkzw/create-context-hook": "^1.1.0",
     "@react-native-async-storage/async-storage": "2.2.0",

@@ -17,12 +17,9 @@ import {
   LogOut
 } from 'lucide-react-native';
 import { useVaultStore, ConnectedDevice } from '@/store/vaultStore';
-import { trpc } from '@/lib/trpc';
-import { 
-  getConnectedDevices, 
-  saveConnectedDevices, 
-  sendCommandToChild 
-} from '@/services/connection';
+import { apiClient } from '@/lib/api-client';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { sendCommandToChild } from '@/services/connection';
 
 export default function ParentDashboardScreen() {
   const router = useRouter();
@@ -73,6 +70,16 @@ export default function ParentDashboardScreen() {
 
   const [parentDeviceId, setParentDeviceIdState] = useState<string>('');
 
+  const getPairedDevicesQuery = useQuery({
+    queryKey: ['pairing.getPairedDevices', parentDeviceId],
+    queryFn: async () => {
+      const response = await apiClient.pairing.getPairedDevices(parentDeviceId);
+      return response.result.data.json;
+    },
+    enabled: !!parentDeviceId,
+    refetchInterval: 3000,
+  });
+
   useEffect(() => {
     const loadParentId = async () => {
       const id = await AsyncStorage.getItem('parent_device_id');
@@ -85,14 +92,28 @@ export default function ParentDashboardScreen() {
   }, []);
 
   const loadLocalDevices = useCallback(async () => {
-    try {
-      const localDevices = await getConnectedDevices();
-      console.log('[ParentDashboard] Loading local devices:', localDevices.length);
-      localDevices.forEach(device => addConnectedDevice(device));
-    } catch (error) {
-      console.error('[ParentDashboard] Error loading local devices:', error);
+    console.log('[ParentDashboard] Local devices are no longer source of truth; using backend only');
+  }, []);
+
+  useEffect(() => {
+    if (getPairedDevicesQuery.data) {
+      const backendDevices = getPairedDevicesQuery.data.devices || [];
+      console.log('[ParentDashboard] Received backend devices:', backendDevices.length);
+      
+      backendDevices.forEach((backendDevice: any) => {
+        const device: ConnectedDevice = {
+          id: backendDevice.id,
+          name: backendDevice.deviceName,
+          deviceId: backendDevice.childDeviceId,
+          childName: backendDevice.childName,
+          lastSeen: backendDevice.lastSeen,
+          isOnline: backendDevice.isOnline,
+          monitoringActive: false,
+        };
+        addConnectedDevice(device);
+      });
     }
-  }, [addConnectedDevice]);
+  }, [getPairedDevicesQuery.data, addConnectedDevice]);
 
   useEffect(() => {
     loadLocalDevices();
@@ -144,7 +165,13 @@ export default function ParentDashboardScreen() {
     );
   };
 
-  const generateCodeMutation = trpc.pairing.generateCode.useMutation();
+  const generateCodeMutation = useMutation({
+    mutationFn: async (params: { parentDeviceId: string; deviceName: string }) => {
+      return await apiClient.pairing.generateCode(params.parentDeviceId, params.deviceName);
+    },
+  });
+
+  const { mutateAsync: generateCodeMutateAsync } = generateCodeMutation;
 
   const handleGenerateCode = useCallback(async () => {
     setIsGeneratingCode(true);
@@ -152,7 +179,7 @@ export default function ParentDashboardScreen() {
       const parentId = await AsyncStorage.getItem('parent_device_id') || `parent_${Date.now()}`;
       await AsyncStorage.setItem('parent_device_id', parentId);
       
-      const result = await generateCodeMutation.mutateAsync({
+      const result = await generateCodeMutateAsync({
         parentDeviceId: parentId,
         deviceName: 'Parent Device',
       });
@@ -176,9 +203,14 @@ export default function ParentDashboardScreen() {
     } finally {
       setIsGeneratingCode(false);
     }
-  }, [generateCodeMutation]);
+  }, [generateCodeMutateAsync]);
 
-  const verifyCodeMutation = trpc.pairing.verifyCode.useMutation();
+  const verifyCodeMutation = useMutation({
+    mutationFn: async (params: { code: string; parentDeviceId: string }) => {
+      const response = await apiClient.pairing.verifyCode(params.code, params.parentDeviceId);
+      return response.result.data.json;
+    },
+  });
 
   const handlePairDevice = async () => {
     if (!pairingCode.trim()) {
@@ -213,7 +245,7 @@ export default function ParentDashboardScreen() {
       addConnectedDevice(newDevice);
       
       const allDevices = [...connectedDevices, newDevice];
-      await saveConnectedDevices(allDevices);
+      console.log('[ParentDashboard] Updated local in-memory device list:', allDevices.length);
       
       setPairingCode('');
       setActiveTab('devices');
@@ -281,7 +313,11 @@ export default function ParentDashboardScreen() {
         status: 'pending' as const,
       };
       
-      await sendCommandToChild(deviceId, command);
+      const parentId = await AsyncStorage.getItem('parent_device_id') || '';
+      if (!parentId) {
+        throw new Error('Missing parent device ID');
+      }
+      await sendCommandToChild(parentId, deviceId, command);
       
       Alert.alert('Monitoring Started', 'Audio monitoring has been enabled on child device');
     } catch (error) {
@@ -303,7 +339,7 @@ export default function ParentDashboardScreen() {
             try {
               removeConnectedDevice(deviceId);
               const updatedDevices = connectedDevices.filter(d => d.id !== deviceId);
-              await saveConnectedDevices(updatedDevices);
+              console.log('[ParentDashboard] Updated local in-memory device list after remove:', updatedDevices.length);
               Alert.alert('Success', 'Device removed');
             } catch (error) {
               console.error('[ParentDashboard] Error removing device:', error);

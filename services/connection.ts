@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
+import { apiClient } from '@/lib/api-client';
 import { ConnectedDevice, UserRole } from '@/store/vaultStore';
 
 export interface PairingRequest {
@@ -156,46 +157,50 @@ export interface RemoteCommand {
   error?: string;
 }
 
-export async function sendCommandToChild(deviceId: string, command: RemoteCommand): Promise<void> {
+export async function sendCommandToChild(
+  parentDeviceId: string,
+  childDeviceId: string,
+  command: RemoteCommand
+): Promise<void> {
   try {
-    console.log('[Connection] Sending command to child:', command.type);
-    const commands = await getRemoteCommands(deviceId);
-    commands.push(command);
-    await AsyncStorage.setItem(`remote_commands_${deviceId}`, JSON.stringify(commands));
+    console.log('[Connection] Sending command to child via backend:', command.type);
+    await apiClient.commands.create(parentDeviceId, childDeviceId, command.type);
   } catch (error) {
     console.error('[Connection] Error sending command:', error);
     throw error;
   }
 }
 
-export async function getRemoteCommands(deviceId: string): Promise<RemoteCommand[]> {
+export async function getRemoteCommands(deviceId: string, since?: string): Promise<RemoteCommand[]> {
   try {
-    const stored = await AsyncStorage.getItem(`remote_commands_${deviceId}`);
-    return stored ? JSON.parse(stored) : [];
+    const response = await apiClient.commands.getChildCommands(deviceId, since);
+    return response.result.data.json.commands;
   } catch (error) {
-    console.error('[Connection] Error getting remote commands:', error);
+    console.error('[Connection] Error getting remote commands from backend:', error);
     return [];
   }
 }
 
 export async function updateCommandStatus(
-  deviceId: string, 
-  commandId: string, 
+  deviceId: string,
+  commandId: string,
   status: RemoteCommand['status'],
   result?: string,
   error?: string
 ): Promise<void> {
   try {
-    const commands = await getRemoteCommands(deviceId);
-    const commandIndex = commands.findIndex(c => c.id === commandId);
-    if (commandIndex >= 0) {
-      commands[commandIndex].status = status;
-      if (result) commands[commandIndex].result = result;
-      if (error) commands[commandIndex].error = error;
-      await AsyncStorage.setItem(`remote_commands_${deviceId}`, JSON.stringify(commands));
-    }
+    await apiClient.commands.updateStatus(deviceId, commandId, status, result, error);
   } catch (error) {
     console.error('[Connection] Error updating command status:', error);
+    throw error;
+  }
+}
+
+export async function sendHeartbeat(childDeviceId: string): Promise<void> {
+  try {
+    await apiClient.pairing.heartbeat(childDeviceId);
+  } catch (error) {
+    console.error('[Connection] Error sending heartbeat:', error);
     throw error;
   }
 }

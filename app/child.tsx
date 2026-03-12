@@ -14,8 +14,9 @@ import {
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { trpc } from '@/lib/trpc';
-import * as WebRTC from '@/services/webrtc';
+import { apiClient } from '@/lib/api-client';
+import { useMutation } from '@tanstack/react-query';
+import { getRemoteCommands, updateCommandStatus, sendHeartbeat } from '@/services/connection';
 
 export default function ChildDashboardScreen() {
   const router = useRouter();
@@ -26,9 +27,7 @@ export default function ChildDashboardScreen() {
   const [isGeneratingCode, setIsGeneratingCode] = useState<boolean>(false);
   const [parentDeviceName, setParentDeviceName] = useState<string>('');
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
-  const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const pulseAnim = useState(new Animated.Value(1))[0];
-  const [childDeviceId, setChildDeviceId] = useState<string>('');
   
   const { 
     setParentDeviceId,
@@ -66,8 +65,6 @@ export default function ChildDashboardScreen() {
     try {
       const parentId = await AsyncStorage.getItem('child_monitoring_parent_id');
       const parentName = await AsyncStorage.getItem('parent_device_name');
-      const deviceId = await AsyncStorage.getItem('device_id') || `child_${Date.now()}`;
-      setChildDeviceId(deviceId);
       
       if (parentId) {
         setIsPaired(true);
@@ -90,6 +87,42 @@ export default function ChildDashboardScreen() {
   }, [checkPairingStatus]);
 
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const startRealtimeLoops = async () => {
+      const childDeviceId = await AsyncStorage.getItem('device_id');
+      if (!childDeviceId || !isPaired) return;
+
+      interval = setInterval(async () => {
+        try {
+          await sendHeartbeat(childDeviceId);
+
+          const commands = await getRemoteCommands(childDeviceId);
+          const pending = commands.filter((c) => c.status === 'pending');
+
+          for (const cmd of pending) {
+            await updateCommandStatus(childDeviceId, cmd.id, 'executing');
+            await updateCommandStatus(
+              childDeviceId,
+              cmd.id,
+              'completed',
+              `Executed ${cmd.type} at ${new Date().toISOString()}`
+            );
+          }
+        } catch (error) {
+          console.error('[ChildDashboard] Realtime loop error:', error);
+        }
+      }, 5000);
+    };
+
+    startRealtimeLoops();
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPaired]);
+
+  useEffect(() => {
     if (connectionStatus === 'connecting') {
       Animated.loop(
         Animated.sequence([
@@ -108,74 +141,14 @@ export default function ChildDashboardScreen() {
     }
   }, [connectionStatus, pulseAnim]);
 
-  const signalMutation = trpc.webrtc.signal.useMutation();
 
-  const startWebRTCStreaming = async (parentId: string) => {
-    try {
-      console.log('[ChildDashboard] Starting WebRTC streaming');
-      setIsStreaming(true);
 
-      await WebRTC.createPeerConnection(undefined, {
-        onIceCandidate: async (candidate) => {
-          console.log('[ChildDashboard] Sending ICE candidate to parent');
-          await signalMutation.mutateAsync({
-            type: 'ice-candidate',
-            from: childDeviceId,
-            to: parentId,
-            data: candidate,
-            timestamp: new Date().toISOString(),
-          });
-        },
-        onConnectionStateChange: (state) => {
-          console.log('[ChildDashboard] WebRTC connection state:', state);
-          if (state === 'connected') {
-            setConnectionStatus('connected');
-          } else if (state === 'disconnected' || state === 'failed') {
-            setConnectionStatus('disconnected');
-          }
-        },
-      });
-
-      await WebRTC.startLocalStream(true, false);
-      console.log('[ChildDashboard] Local audio stream started');
-
-      await WebRTC.addLocalStreamToPeer();
-
-      const offer = await WebRTC.createOffer();
-      console.log('[ChildDashboard] Created offer, sending to parent');
-
-      await signalMutation.mutateAsync({
-        type: 'offer',
-        from: childDeviceId,
-        to: parentId,
-        data: offer,
-        timestamp: new Date().toISOString(),
-      });
-
-      console.log('[ChildDashboard] WebRTC streaming started successfully');
-    } catch (error) {
-      console.error('[ChildDashboard] Error starting WebRTC streaming:', error);
-      setIsStreaming(false);
-    }
-  };
-
-  const stopWebRTCStreaming = async () => {
-    try {
-      console.log('[ChildDashboard] Stopping WebRTC streaming');
-      WebRTC.cleanupWebRTC();
-      setIsStreaming(false);
-    } catch (error) {
-      console.error('[ChildDashboard] Error stopping WebRTC streaming:', error);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      stopWebRTCStreaming();
-    };
-  }, []);
-
-  const storePairingMutation = trpc.pairing.storePairingCode.useMutation();
+  const storePairingMutation = useMutation({
+    mutationFn: async (params: { code: string; deviceId: string; deviceName: string; deviceType: 'parent' | 'child' }) => {
+      const response = await apiClient.pairing.storePairingCode(params.code, params.deviceId, params.deviceName, params.deviceType);
+      return response.result.data.json;
+    },
+  });
 
   const generatePairingCode = async () => {
     setIsGeneratingCode(true);
@@ -217,7 +190,12 @@ export default function ChildDashboardScreen() {
     }
   };
 
-  const pairMutation = trpc.pairing.pairDevice.useMutation();
+  const pairMutation = useMutation({
+    mutationFn: async (params: { code: string; childDeviceId: string; childName: string }) => {
+      const response = await apiClient.pairing.pairDevice(params.code, params.childDeviceId, params.childName);
+      return response.result.data.json;
+    },
+  });
 
   const handleSubmitCode = async () => {
     if (!inputCode.trim() || inputCode.length !== 6) {
@@ -256,8 +234,6 @@ export default function ChildDashboardScreen() {
       setConnectionStatus('connected');
       setInputCode('');
       
-      await startWebRTCStreaming(parentId);
-      
       Alert.alert(
         'Successfully Paired!',
         'This device is now connected to the parent device. Monitoring is active.',
@@ -283,8 +259,6 @@ export default function ChildDashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await stopWebRTCStreaming();
-              
               await AsyncStorage.removeItem('child_monitoring_parent_id');
               await AsyncStorage.removeItem('parent_device_name');
               await AsyncStorage.setItem('child_monitoring_active', 'false');
@@ -483,12 +457,6 @@ export default function ChildDashboardScreen() {
                 <View style={styles.pairedRow}>
                   <Text style={styles.pairedLabel}>Monitoring:</Text>
                   <Text style={[styles.pairedValue, { color: '#f59e0b' }]}>Enabled</Text>
-                </View>
-                <View style={styles.pairedRow}>
-                  <Text style={styles.pairedLabel}>Streaming:</Text>
-                  <Text style={[styles.pairedValue, { color: isStreaming ? '#10b981' : '#6b7280' }]}>
-                    {isStreaming ? 'Active' : 'Inactive'}
-                  </Text>
                 </View>
               </View>
 

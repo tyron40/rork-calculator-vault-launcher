@@ -5,8 +5,11 @@ import { verifyCodeProcedure } from "./routes/pairing/verifyCode/route";
 import { getPairedDevicesProcedure } from "./routes/pairing/getPairedDevices/route";
 import { unpairDeviceProcedure } from "./routes/pairing/unpairDevice/route";
 import { pairDeviceProcedure, storePairingCodeProcedure } from "./routes/pairing/pair/route";
-import webrtcSignalRoute from "./routes/webrtc/signal/route";
-import webrtcGetSignalsRoute from "./routes/webrtc/getSignals/route";
+import { heartbeatProcedure } from "./routes/pairing/heartbeat/route";
+import { createCommandProcedure } from "./routes/commands/create/route";
+import { getChildCommandsProcedure } from "./routes/commands/getChildCommands/route";
+import { updateCommandStatusProcedure } from "./routes/commands/updateStatus/route";
+import { getParentCommandHistoryProcedure } from "./routes/commands/getParentHistory/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -19,10 +22,13 @@ export const appRouter = createTRPCRouter({
     unpairDevice: unpairDeviceProcedure,
     pairDevice: pairDeviceProcedure,
     storePairingCode: storePairingCodeProcedure,
+    heartbeat: heartbeatProcedure,
   }),
-  webrtc: createTRPCRouter({
-    signal: webrtcSignalRoute,
-    getSignals: webrtcGetSignalsRoute,
+  commands: createTRPCRouter({
+    create: createCommandProcedure,
+    getChildCommands: getChildCommandsProcedure,
+    updateStatus: updateCommandStatusProcedure,
+    getParentHistory: getParentCommandHistoryProcedure,
   }),
 });
 
