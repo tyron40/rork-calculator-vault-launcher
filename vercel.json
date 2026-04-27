@@ -1,24 +1,5 @@
 {
   "version": 2,
   "buildCommand": "npm run build:web",
-  "outputDirectory": "dist",
-  "builds": [
-    {
-      "src": "backend/hono.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/hono.ts"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  "outputDirectory": "dist"
 }

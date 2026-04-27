@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiClient, WebRTCSignalMessage, WebRTCSignalPayload } from '@/lib/api-client';
 
 export interface WebRTCConfig {
   iceServers: RTCIceServer[];
@@ -228,47 +228,72 @@ export function getConnectionState(): RTCPeerConnectionState | null {
   return peerConnection?.connectionState || null;
 }
 
+export function createSessionId(from: string, to: string): string {
+  return `live_${from}_${to}`;
+}
+
+export async function sendSignalMessage(
+  sessionId: string,
+  type: SignalingMessage['type'],
+  from: string,
+  to: string,
+  data?: unknown
+): Promise<void> {
+  await saveSignalingMessage({
+    type,
+    from,
+    to,
+    data: {
+      ...(typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : { value: data }),
+      sessionId,
+    },
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export async function pollSignals(deviceId: string): Promise<SignalingMessage[]> {
+  return getSignalingMessages(deviceId);
+}
+
 export async function saveSignalingMessage(message: SignalingMessage): Promise<void> {
   try {
-    const key = `signaling_${message.to}`;
-    const stored = await AsyncStorage.getItem(key);
-    const messages: SignalingMessage[] = stored ? JSON.parse(stored) : [];
-    
-    messages.push(message);
-    
-    if (messages.length > 100) {
-      messages.shift();
-    }
-    
-    await AsyncStorage.setItem(key, JSON.stringify(messages));
-    console.log('[WebRTC] Signaling message saved for:', message.to);
+    const payload: WebRTCSignalPayload = {
+      sessionId: (message.data?.sessionId as string) || `${message.from}_${message.to}`,
+      type: message.type,
+      from: message.from,
+      to: message.to,
+      data: message.data,
+      timestamp: message.timestamp,
+    };
+
+    await apiClient.webrtc.signal(payload);
+    console.log('[WebRTC] Signaling message sent to backend for:', message.to);
   } catch (error) {
-    console.error('[WebRTC] Error saving signaling message:', error);
+    console.error('[WebRTC] Error sending signaling message:', error);
     throw error;
   }
 }
 
 export async function getSignalingMessages(deviceId: string): Promise<SignalingMessage[]> {
   try {
-    const key = `signaling_${deviceId}`;
-    const stored = await AsyncStorage.getItem(key);
-    const messages: SignalingMessage[] = stored ? JSON.parse(stored) : [];
-    
-    return messages;
+    const response = await apiClient.webrtc.getSignals(deviceId);
+    const messages: WebRTCSignalMessage[] = response.result.data.json.messages ?? [];
+
+    return messages.map((msg) => ({
+      type: msg.type,
+      from: msg.from,
+      to: msg.to,
+      data: msg.data,
+      timestamp: msg.timestamp,
+    }));
   } catch (error) {
     console.error('[WebRTC] Error getting signaling messages:', error);
     return [];
   }
 }
 
-export async function clearSignalingMessages(deviceId: string): Promise<void> {
-  try {
-    const key = `signaling_${deviceId}`;
-    await AsyncStorage.removeItem(key);
-    console.log('[WebRTC] Signaling messages cleared for:', deviceId);
-  } catch (error) {
-    console.error('[WebRTC] Error clearing signaling messages:', error);
-  }
+export async function clearSignalingMessages(_deviceId: string): Promise<void> {
+  console.log('[WebRTC] clearSignalingMessages is handled by backend dequeue semantics');
 }
 
 export async function cleanupWebRTC(): Promise<void> {
