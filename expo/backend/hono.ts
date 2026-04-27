@@ -7,7 +7,49 @@ import { getGlobalStore } from "./trpc/routes/storage";
 
 const app = new Hono();
 
-app.use("*", cors());
+const allowedExactOrigins = new Set([
+  "https://rork-calculator-vault-launcher.vercel.app",
+  "http://localhost:8081",
+  "http://localhost:8082",
+  "http://localhost:8083",
+  "http://localhost:3000",
+]);
+
+function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return true;
+  if (allowedExactOrigins.has(origin)) return true;
+
+  const normalized = origin.toLowerCase().trim();
+  const hostMatch = normalized.match(/^https?:\/\/([^/:?#]+)/);
+  const host = hostMatch?.[1];
+
+  if (!host) return false;
+  if (host.endsWith(".exp.direct")) return true;
+  if (host.endsWith(".exp.host")) return true;
+  if (host.endsWith(".vercel.app")) return true;
+
+  return false;
+}
+
+app.use("*", async (c, next) => {
+  const origin = c.req.header("origin");
+  const allowOrigin = isAllowedOrigin(origin) ? origin ?? "*" : "null";
+
+  return cors({
+    origin: allowOrigin,
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "x-trpc-source",
+      "x-trpc-batch-mode",
+    ],
+    exposeHeaders: ["Content-Length"],
+    credentials: true,
+    maxAge: 86400,
+  })(c, next);
+});
 
 app.use(
   "/trpc/*",
@@ -19,6 +61,14 @@ app.use(
     },
   })
 );
+
+app.get("/healthz", (c) => {
+  return c.json({
+    status: "ok",
+    message: "healthz",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 app.get("/", (c) => {
   const store = getGlobalStore();

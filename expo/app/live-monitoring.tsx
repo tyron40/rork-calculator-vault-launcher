@@ -163,6 +163,7 @@ export default function LiveMonitoringScreen() {
           onIceCandidate: async (candidate) => {
             console.log('[LiveMonitoring] Sending ICE candidate to child');
             await signalMutation.mutateAsync({
+              sessionId: `live_${parentDeviceId}_${selectedDevice.deviceId}`,
               type: 'ice-candidate',
               from: parentDeviceId,
               to: selectedDevice.deviceId,
@@ -185,8 +186,10 @@ export default function LiveMonitoringScreen() {
               console.log('[LiveMonitoring] Processing signal:', message.type);
               
               if (message.type === 'offer') {
-                const answer = await WebRTC.createAnswer(message.data);
+                const offerData = message.data as RTCSessionDescriptionInit;
+                const answer = await WebRTC.createAnswer(offerData);
                 await signalMutation.mutateAsync({
+                  sessionId: `live_${parentDeviceId}_${selectedDevice.deviceId}`,
                   type: 'answer',
                   from: parentDeviceId,
                   to: selectedDevice.deviceId,
@@ -194,7 +197,8 @@ export default function LiveMonitoringScreen() {
                   timestamp: new Date().toISOString(),
                 });
               } else if (message.type === 'ice-candidate') {
-                await WebRTC.addIceCandidate(message.data);
+                const candidateData = message.data as RTCIceCandidateInit;
+                await WebRTC.addIceCandidate(candidateData);
               }
             }
           } catch (error) {

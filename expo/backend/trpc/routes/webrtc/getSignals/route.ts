@@ -1,20 +1,18 @@
 import { z } from 'zod';
 import { publicProcedure } from '@/backend/trpc/create-context';
 import { TRPCError } from '@trpc/server';
-
-const signalingMessagesStore = new Map<string, any[]>();
+import { dequeueSignalsForDevice } from '../store';
 
 export default publicProcedure
-  .input(z.object({
-    deviceId: z.string(),
-  }))
+  .input(
+    z.object({
+      deviceId: z.string().min(1),
+    })
+  )
   .query(async ({ input }) => {
     try {
       console.log('[WebRTC Signaling] Getting signals for device:', input.deviceId);
-
-      const messages = signalingMessagesStore.get(input.deviceId) || [];
-      
-      signalingMessagesStore.delete(input.deviceId);
+      const messages = dequeueSignalsForDevice(input.deviceId);
 
       return {
         messages,

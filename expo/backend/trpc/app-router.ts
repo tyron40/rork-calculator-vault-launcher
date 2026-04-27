@@ -10,6 +10,8 @@ import { createCommandProcedure } from "./routes/commands/create/route";
 import { getChildCommandsProcedure } from "./routes/commands/getChildCommands/route";
 import { updateCommandStatusProcedure } from "./routes/commands/updateStatus/route";
 import { getParentCommandHistoryProcedure } from "./routes/commands/getParentHistory/route";
+import webrtcSignalProcedure from "./routes/webrtc/signal/route";
+import webrtcGetSignalsProcedure from "./routes/webrtc/getSignals/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -29,6 +31,10 @@ export const appRouter = createTRPCRouter({
     getChildCommands: getChildCommandsProcedure,
     updateStatus: updateCommandStatusProcedure,
     getParentHistory: getParentCommandHistoryProcedure,
+  }),
+  webrtc: createTRPCRouter({
+    signal: webrtcSignalProcedure,
+    getSignals: webrtcGetSignalsProcedure,
   }),
 });
 

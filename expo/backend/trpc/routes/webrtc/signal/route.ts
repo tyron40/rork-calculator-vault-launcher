@@ -1,32 +1,38 @@
 import { z } from 'zod';
 import { publicProcedure } from '@/backend/trpc/create-context';
 import { TRPCError } from '@trpc/server';
+import { enqueueSignal } from '../store';
 
 const signalingMessageSchema = z.object({
+  sessionId: z.string().min(1),
   type: z.enum(['offer', 'answer', 'ice-candidate', 'stream-request', 'stream-stop']),
-  from: z.string(),
-  to: z.string(),
-  data: z.any().optional(),
-  timestamp: z.string(),
+  from: z.string().min(1),
+  to: z.string().min(1),
+  data: z.unknown().optional(),
+  timestamp: z.string().datetime().optional(),
 });
-
-const signalingMessagesStore = new Map<string, any[]>();
 
 export default publicProcedure
   .input(signalingMessageSchema)
   .mutation(async ({ input }) => {
     try {
-      console.log('[WebRTC Signaling] Received message:', input.type, 'from:', input.from, 'to:', input.to);
+      const message = {
+        ...input,
+        timestamp: input.timestamp ?? new Date().toISOString(),
+      };
 
-      const key = input.to;
-      const messages = signalingMessagesStore.get(key) || [];
-      messages.push(input);
-      
-      if (messages.length > 100) {
-        messages.shift();
-      }
-      
-      signalingMessagesStore.set(key, messages);
+      console.log(
+        '[WebRTC Signaling] Received message:',
+        message.type,
+        'session:',
+        message.sessionId,
+        'from:',
+        message.from,
+        'to:',
+        message.to
+      );
+
+      enqueueSignal(message);
 
       return {
         success: true,

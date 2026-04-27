@@ -1,25 +1,32 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
+const PROD_API_BASE_URL = "https://rork-calculator-vault-launcher.vercel.app";
+
 const getBaseUrl = () => {
-  if (process.env.EXPO_PUBLIC_RORK_API_BASE_URL) {
-    return process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+  const envBaseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL?.trim();
+  if (envBaseUrl) {
+    return envBaseUrl;
   }
 
-  const debuggerHost = Constants.expoConfig?.hostUri;
-  if (debuggerHost && Platform.OS !== "web") {
-    const host = debuggerHost.split(':')[0];
-    return `http://${host}:8081`;
-  }
-
-  if (Platform.OS === "web") {
-    if (typeof window !== 'undefined') {
-      return window.location.origin;
+  if (__DEV__) {
+    const debuggerHost = Constants.expoConfig?.hostUri;
+    if (debuggerHost && Platform.OS !== "web") {
+      const host = debuggerHost.split(":")[0];
+      return `http://${host}:8081`;
     }
-    return 'http://localhost:8081';
+
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined") {
+        return window.location.origin;
+      }
+      return "http://localhost:8081";
+    }
+
+    return "http://localhost:8081";
   }
 
-  return 'http://localhost:8081';
+  return PROD_API_BASE_URL;
 };
 
 const BASE_URL = getBaseUrl();
@@ -54,6 +61,26 @@ async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+export type WebRTCSignalType =
+  | 'offer'
+  | 'answer'
+  | 'ice-candidate'
+  | 'stream-request'
+  | 'stream-stop';
+
+export interface WebRTCSignalPayload {
+  sessionId: string;
+  type: WebRTCSignalType;
+  from: string;
+  to: string;
+  data?: unknown;
+  timestamp?: string;
+}
+
+export interface WebRTCSignalMessage extends Required<Omit<WebRTCSignalPayload, 'data'>> {
+  data?: unknown;
 }
 
 export const apiClient = {
@@ -179,6 +206,42 @@ export const apiClient = {
           json: { childDeviceId },
         }),
       });
+    },
+  },
+
+  webrtc: {
+    signal: async (payload: WebRTCSignalPayload) => {
+      return apiCall<{
+        result: {
+          data: {
+            json: {
+              success: boolean;
+              message: string;
+            };
+          };
+        };
+      }>('/api/trpc/webrtc.signal', {
+        method: 'POST',
+        body: JSON.stringify({
+          json: payload,
+        }),
+      });
+    },
+
+    getSignals: async (deviceId: string) => {
+      const params = new URLSearchParams({
+        input: JSON.stringify({ json: { deviceId } }),
+      });
+
+      return apiCall<{
+        result: {
+          data: {
+            json: {
+              messages: WebRTCSignalMessage[];
+            };
+          };
+        };
+      }>(`/api/trpc/webrtc.getSignals?${params}`);
     },
   },
 
