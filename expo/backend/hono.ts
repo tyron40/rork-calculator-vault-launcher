@@ -59,6 +59,19 @@ const trpcMiddleware = trpcServer({
   },
 });
 
+// Normalize duplicated prefixes before tRPC router resolution.
+app.use("/api/trpc/trpc/*", async (c, next) => {
+  const url = new URL(c.req.url);
+  url.pathname = url.pathname.replace(/^\/api\/trpc\/trpc\//, "/api/trpc/");
+  return c.redirect(url.toString(), 307);
+});
+
+app.use("/trpc/trpc/*", async (c, next) => {
+  const url = new URL(c.req.url);
+  url.pathname = url.pathname.replace(/^\/trpc\/trpc\//, "/trpc/");
+  return c.redirect(url.toString(), 307);
+});
+
 app.use("/trpc/*", trpcMiddleware);
 app.use("/api/trpc/*", trpcMiddleware);
 

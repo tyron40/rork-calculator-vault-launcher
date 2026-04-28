@@ -1,10 +1,16 @@
-# Critical Path Fix TODO (Routing + Pairing + Heartbeat)
+# TODO - Render Production Critical Path Fix
 
-- [x] Update backend tRPC mount to support both `/trpc/*` and `/api/trpc/*`
-- [x] Add `/api/healthz` compatibility health route
-- [ ] Add temporary debug endpoint for runtime tRPC procedure keys
-- [ ] Deploy and inspect runtime procedure key list
-- [ ] Align client/server procedure path usage to runtime keys
-- [ ] Validate pairing and heartbeat endpoints via curl
+## Plan-approved execution checklist
+
+- [x] Gather production diagnostics from Render CLI (workspace/services/logs)
+- [ ] Normalize tRPC request paths in `expo/backend/hono.ts` for `/trpc/*` and `/api/trpc/*`
+- [ ] Align peer deps in `expo/package.json` (`react`/`react-dom` -> `19.2.1`)
 - [ ] Commit and push fixes to `main`
-- [ ] Verify deployment and re-test critical sync path
+- [ ] Trigger/confirm Render deploy for updated commit
+- [ ] Re-test critical endpoints on hosted backend:
+  - [ ] `GET /healthz`
+  - [ ] `POST /api/trpc/pairing.generateCode`
+  - [ ] `POST /api/trpc/pairing.pairDevice`
+  - [ ] `GET /api/trpc/pairing.getPairedDevices`
+  - [ ] `POST /api/trpc/pairing.heartbeat`
+- [ ] Capture final pass/fail test summary
