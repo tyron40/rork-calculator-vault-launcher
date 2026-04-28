@@ -98,6 +98,15 @@ app.get("/debug/codes", (c) => {
   return c.json({ codes, total: codes.length });
 });
 
+app.get("/debug/trpc-procedures", (c) => {
+  const procedures = Object.keys((appRouter as any)?._def?.procedures ?? {}).sort();
+  return c.json({
+    total: procedures.length,
+    procedures,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get("/debug/devices/:parentId", (c) => {
   const parentId = c.req.param('parentId');
   const store = getGlobalStore();
