@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const PROD_API_BASE_URL = "https://rork-calculator-vault-launcher.vercel.app";
+const PROD_API_BASE_URL = "https://rork-calculator-vault-launcher.onrender.com";
 
 const getBaseUrl = () => {
   const envBaseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL?.trim();
@@ -10,20 +10,12 @@ const getBaseUrl = () => {
   }
 
   if (__DEV__) {
-    const debuggerHost = Constants.expoConfig?.hostUri;
-    if (debuggerHost && Platform.OS !== "web") {
-      const host = debuggerHost.split(":")[0];
-      return `http://${host}:8081`;
+    const envBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+    if (envBaseUrl) {
+      return envBaseUrl;
     }
 
-    if (Platform.OS === "web") {
-      if (typeof window !== "undefined") {
-        return window.location.origin;
-      }
-      return "http://localhost:8081";
-    }
-
-    return "http://localhost:8081";
+    return PROD_API_BASE_URL;
   }
 
   return PROD_API_BASE_URL;

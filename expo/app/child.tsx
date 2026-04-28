@@ -14,17 +14,14 @@ import {
 } from 'lucide-react-native';
 import { useVaultStore } from '@/store/vaultStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { apiClient } from '@/lib/api-client';
-import { useMutation } from '@tanstack/react-query';
 import { getRemoteCommands, updateCommandStatus, sendHeartbeat } from '@/services/connection';
 
 export default function ChildDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [pairingCode, setPairingCode] = useState<string>('');
+  const [pairingCode] = useState<string>('2580');
   const [inputCode, setInputCode] = useState<string>('');
   const [isPaired, setIsPaired] = useState<boolean>(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState<boolean>(false);
   const [parentDeviceName, setParentDeviceName] = useState<string>('');
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   const pulseAnim = useState(new Animated.Value(1))[0];
@@ -143,104 +140,38 @@ export default function ChildDashboardScreen() {
 
 
 
-  const storePairingMutation = useMutation({
-    mutationFn: async (params: { code: string; deviceId: string; deviceName: string; deviceType: 'parent' | 'child' }) => {
-      const response = await apiClient.pairing.storePairingCode(params.code, params.deviceId, params.deviceName, params.deviceType);
-      return response.result.data.json;
-    },
-  });
-
-  const generatePairingCode = async () => {
-    setIsGeneratingCode(true);
-    try {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const deviceId = await AsyncStorage.getItem('device_id') || `child_${Date.now()}`;
-      const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
-      const childName = consentData.childName || 'Child Device';
-      
-      await AsyncStorage.setItem('device_id', deviceId);
-      
-      console.log('[ChildDashboard] Storing pairing code in backend:', code);
-      await storePairingMutation.mutateAsync({
-        code,
-        deviceId,
-        deviceName: childName,
-        deviceType: 'child',
-      });
-      
-      await AsyncStorage.setItem('child_pairing_code', code);
-      await AsyncStorage.setItem('child_pairing_code_timestamp', Date.now().toString());
-      
-      setPairingCode(code);
-      
-      console.log('[ChildDashboard] Generated pairing code:', code);
-      
-      setTimeout(() => {
-        setPairingCode('');
-        AsyncStorage.removeItem('child_pairing_code');
-        AsyncStorage.removeItem('child_pairing_code_timestamp');
-        Alert.alert('Code Expired', 'The pairing code has expired. Generate a new one to pair.');
-      }, 300000);
-      
-    } catch (error) {
-      console.error('[ChildDashboard] Error generating pairing code:', error);
-      Alert.alert('Error', 'Failed to generate pairing code');
-    } finally {
-      setIsGeneratingCode(false);
-    }
-  };
-
-  const pairMutation = useMutation({
-    mutationFn: async (params: { code: string; childDeviceId: string; childName: string }) => {
-      const response = await apiClient.pairing.pairDevice(params.code, params.childDeviceId, params.childName);
-      return response.result.data.json;
-    },
-  });
-
   const handleSubmitCode = async () => {
-    if (!inputCode.trim() || inputCode.length !== 6) {
-      Alert.alert('Invalid Code', 'Please enter a 6-character pairing code from the parent device');
+    if (!inputCode.trim() || inputCode.length !== 4) {
+      Alert.alert('Invalid Code', 'Please enter the 4-digit parent pairing code');
+      return;
+    }
+
+    if (inputCode.trim() !== pairingCode) {
+      Alert.alert('Invalid Code', 'The parent pairing code is incorrect.');
       return;
     }
 
     try {
       setConnectionStatus('connecting');
-      console.log('[ChildDashboard] Submitting pairing code to backend:', inputCode);
-      
-      const deviceId = await AsyncStorage.getItem('device_id') || `child_${Date.now()}`;
-      await AsyncStorage.setItem('device_id', deviceId);
-      
-      const consentData = JSON.parse(await AsyncStorage.getItem('parental_consent') || '{}');
-      const childName = consentData.childName || 'Child Device';
-      
-      const result = await pairMutation.mutateAsync({
-        code: inputCode,
-        childDeviceId: deviceId,
-        childName: childName,
-      });
-      
-      console.log('[ChildDashboard] Backend pairing result:', result);
-      
-      const parentId = result.parentDeviceId || `parent_${inputCode}_${Date.now()}`;
-      const parentName = result.parentDeviceName || 'Parent Device';
-      
+
+      const parentId = 'parent_static_2580';
+      const parentName = 'Parent Device';
+
       await AsyncStorage.setItem('child_monitoring_parent_id', parentId);
       await AsyncStorage.setItem('parent_device_name', parentName);
       await AsyncStorage.setItem('child_monitoring_active', 'true');
-      
+
       setParentDeviceId(parentId);
       setIsPaired(true);
       setParentDeviceName(parentName);
       setConnectionStatus('connected');
       setInputCode('');
-      
+
       Alert.alert(
         'Successfully Paired!',
-        'This device is now connected to the parent device. Monitoring is active.',
+        'This device is now connected using the 4-digit static parent code.',
         [{ text: 'OK' }]
       );
-      
-      console.log('[ChildDashboard] Device paired successfully');
     } catch (error) {
       console.error('[ChildDashboard] Error pairing device:', error);
       setConnectionStatus('disconnected');
@@ -368,34 +299,19 @@ export default function ChildDashboardScreen() {
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Shield size={28} color="#8b5cf6" />
-                <Text style={styles.sectionTitle}>Generate Pairing Code</Text>
+                <Text style={styles.sectionTitle}>Static Parent Code</Text>
               </View>
               <Text style={styles.sectionDescription}>
-                Generate a code that the parent can use to connect to this device
+                Enter this same 4-digit parent code to pair anytime
               </Text>
 
-              {pairingCode ? (
-                <View style={styles.codeDisplayContainer}>
-                  <Text style={styles.codeDisplayLabel}>Your Pairing Code</Text>
-                  <View style={styles.codeDisplay}>
-                    <Text style={styles.codeDisplayText}>{pairingCode}</Text>
-                  </View>
-                  <Text style={styles.codeExpiry}>
-                    ⏱️ Code expires in 5 minutes
-                  </Text>
+              <View style={styles.codeDisplayContainer}>
+                <Text style={styles.codeDisplayLabel}>Parent Pairing Code</Text>
+                <View style={styles.codeDisplay}>
+                  <Text style={styles.codeDisplayText}>{pairingCode}</Text>
                 </View>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.primaryButton, isGeneratingCode && styles.primaryButtonDisabled]}
-                  onPress={generatePairingCode}
-                  disabled={isGeneratingCode}
-                >
-                  <Shield size={20} color="#ffffff" />
-                  <Text style={styles.primaryButtonText}>
-                    {isGeneratingCode ? 'Generating...' : 'Generate Code'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+                <Text style={styles.codeExpiry}>♾️ This code does not expire</Text>
+              </View>
             </View>
 
             <View style={styles.divider}>
@@ -410,28 +326,28 @@ export default function ChildDashboardScreen() {
                 <Text style={styles.sectionTitle}>Enter Parent Code</Text>
               </View>
               <Text style={styles.sectionDescription}>
-                Enter the 6-character code from the parent device
+                Enter the 4-digit code from the parent device
               </Text>
 
               <View style={styles.codeInputContainer}>
                 <TextInput
                   style={styles.codeInput}
-                  placeholder="XXXXXX"
+                  placeholder="0000"
                   placeholderTextColor="#6b7280"
                   value={inputCode}
                   onChangeText={(text) => setInputCode(text.toUpperCase())}
                   autoCapitalize="characters"
-                  maxLength={6}
+                  maxLength={4}
                 />
               </View>
 
               <TouchableOpacity
                 style={[
                   styles.primaryButton,
-                  (!inputCode || inputCode.length !== 6) && styles.primaryButtonDisabled
+                (!inputCode || inputCode.length !== 4) && styles.primaryButtonDisabled
                 ]}
                 onPress={handleSubmitCode}
-                disabled={!inputCode || inputCode.length !== 6}
+                disabled={!inputCode || inputCode.length !== 4}
               >
                 <Link2 size={20} color="#ffffff" />
                 <Text style={styles.primaryButtonText}>Connect to Parent</Text>

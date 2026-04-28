@@ -25,8 +25,7 @@ export default function ParentDashboardScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'devices' | 'connect' | 'settings'>('devices');
   const [pairingCode, setPairingCode] = useState<string>('');
-  const [generatedCode, setGeneratedCode] = useState<string>('');
-  const [isGeneratingCode, setIsGeneratingCode] = useState<boolean>(false);
+  const [generatedCode] = useState<string>('2580');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
@@ -165,94 +164,38 @@ export default function ParentDashboardScreen() {
     );
   };
 
-  const generateCodeMutation = useMutation({
-    mutationFn: async (params: { parentDeviceId: string; deviceName: string }) => {
-      return await apiClient.pairing.generateCode(params.parentDeviceId, params.deviceName);
-    },
-  });
-
-  const { mutateAsync: generateCodeMutateAsync } = generateCodeMutation;
-
-  const handleGenerateCode = useCallback(async () => {
-    setIsGeneratingCode(true);
-    try {
-      const parentId = await AsyncStorage.getItem('parent_device_id') || `parent_${Date.now()}`;
-      await AsyncStorage.setItem('parent_device_id', parentId);
-      
-      const result = await generateCodeMutateAsync({
-        parentDeviceId: parentId,
-        deviceName: 'Parent Device',
-      });
-      
-      if (!result) {
-        throw new Error('Failed to generate code');
-      }
-      
-      setGeneratedCode(result.code);
-      
-      console.log('[ParentDashboard] Generated pairing code:', result.code);
-      
-      setTimeout(() => {
-        setGeneratedCode('');
-        Alert.alert('Code Expired', 'The pairing code has expired. Generate a new one to pair.');
-      }, 300000);
-      
-    } catch (error) {
-      console.error('[ParentDashboard] Error generating code:', error);
-      Alert.alert('Error', 'Failed to generate pairing code');
-    } finally {
-      setIsGeneratingCode(false);
-    }
-  }, [generateCodeMutateAsync]);
-
-  const verifyCodeMutation = useMutation({
-    mutationFn: async (params: { code: string; parentDeviceId: string }) => {
-      const response = await apiClient.pairing.verifyCode(params.code, params.parentDeviceId);
-      return response.result.data.json;
-    },
-  });
-
   const handlePairDevice = async () => {
     if (!pairingCode.trim()) {
-      Alert.alert('Required', 'Please enter pairing code from child device');
+      Alert.alert('Required', 'Please enter pairing code');
+      return;
+    }
+
+    const normalizedCode = pairingCode.trim();
+    if (normalizedCode !== generatedCode) {
+      Alert.alert('Invalid Code', 'The pairing code is incorrect.');
       return;
     }
 
     try {
       setIsLoading(true);
-      console.log('[ParentDashboard] Verifying pairing code:', pairingCode);
-      
-      const parentId = await AsyncStorage.getItem('parent_device_id') || `parent_${Date.now()}`;
-      await AsyncStorage.setItem('parent_device_id', parentId);
-      
-      const result = await verifyCodeMutation.mutateAsync({
-        code: pairingCode,
-        parentDeviceId: parentId,
-      });
-      
-      console.log('[ParentDashboard] Verification result:', result);
-      
+      const childCode = `child_${Date.now()}`;
       const newDevice: ConnectedDevice = {
-        id: result.childDeviceId || `device_${Date.now()}`,
-        name: result.childName || 'Child Device',
-        deviceId: result.childDeviceId || `child_${pairingCode}`,
-        childName: result.childName || 'Child',
+        id: childCode,
+        name: 'Child Device',
+        deviceId: childCode,
+        childName: `Child ${connectedDevices.length + 1}`,
         lastSeen: new Date().toISOString(),
         isOnline: true,
         monitoringActive: false,
       };
 
       addConnectedDevice(newDevice);
-      
-      const allDevices = [...connectedDevices, newDevice];
-      console.log('[ParentDashboard] Updated local in-memory device list:', allDevices.length);
-      
       setPairingCode('');
       setActiveTab('devices');
-      
+
       Alert.alert(
         'Device Paired',
-        `Successfully connected to ${newDevice.childName}!\n\nYou can now monitor this device.`,
+        `Successfully paired using static code ${generatedCode}.`,
         [{ text: 'OK' }]
       );
     } catch (error) {
@@ -496,40 +439,21 @@ export default function ParentDashboardScreen() {
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <QrCode size={32} color="#8b5cf6" />
-                <Text style={styles.sectionTitle}>Generate Pairing Code</Text>
+                <Text style={styles.sectionTitle}>Static Pairing Code</Text>
               </View>
               <Text style={styles.sectionDescription}>
-                Generate a code that the child device can use to connect
+                Use this single code for all future device pairings
               </Text>
 
-              {generatedCode ? (
-                <View style={styles.codeDisplayContainer}>
-                  <Text style={styles.codeDisplayLabel}>Share this code with child device</Text>
-                  <View style={styles.codeDisplay}>
-                    <Text style={styles.codeDisplayText}>{generatedCode}</Text>
-                  </View>
-                  <Text style={styles.codeExpiry}>
-                    ⏱️ Code expires in 5 minutes
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={() => setGeneratedCode('')}
-                  >
-                    <Text style={styles.secondaryButtonText}>Generate New Code</Text>
-                  </TouchableOpacity>
+              <View style={styles.codeDisplayContainer}>
+                <Text style={styles.codeDisplayLabel}>Share this code with child device</Text>
+                <View style={styles.codeDisplay}>
+                  <Text style={styles.codeDisplayText}>{generatedCode}</Text>
                 </View>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.primaryButton, isGeneratingCode && styles.primaryButtonDisabled]}
-                  onPress={handleGenerateCode}
-                  disabled={isGeneratingCode}
-                >
-                  <QrCode size={20} color="#ffffff" />
-                  <Text style={styles.primaryButtonText}>
-                    {isGeneratingCode ? 'Generating...' : 'Generate Code'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+                <Text style={styles.codeExpiry}>
+                  ♾️ This code does not expire
+                </Text>
+              </View>
             </View>
 
             <View style={styles.divider}>
