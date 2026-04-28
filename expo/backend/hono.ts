@@ -51,24 +51,27 @@ app.use("*", async (c, next) => {
   })(c, next);
 });
 
-app.use(
-  "/trpc/*",
-  trpcServer({
-    router: appRouter,
-    createContext,
-    onError: ({ error, path }) => {
-      console.error(`[tRPC] Error on ${path}:`, error);
-    },
-  })
-);
+const trpcMiddleware = trpcServer({
+  router: appRouter,
+  createContext,
+  onError: ({ error, path }) => {
+    console.error(`[tRPC] Error on ${path}:`, error);
+  },
+});
 
-app.get("/healthz", (c) => {
-  return c.json({
+app.use("/trpc/*", trpcMiddleware);
+app.use("/api/trpc/*", trpcMiddleware);
+
+function healthResponse() {
+  return {
     status: "ok",
     message: "healthz",
     timestamp: new Date().toISOString(),
-  });
-});
+  };
+}
+
+app.get("/healthz", (c) => c.json(healthResponse()));
+app.get("/api/healthz", (c) => c.json(healthResponse()));
 
 app.get("/", (c) => {
   const store = getGlobalStore();
