@@ -28,6 +28,29 @@ const DEFAULT_CONFIG: WebRTCConfig = {
   ],
 };
 
+type WebRTCAPIShape = {
+  RTCPeerConnection: any;
+  RTCIceCandidate: any;
+  RTCSessionDescription: any;
+  mediaDevices: any;
+};
+
+const WebRTCAPI: WebRTCAPIShape = {
+  RTCPeerConnection: (globalThis as any).RTCPeerConnection,
+  RTCIceCandidate: (globalThis as any).RTCIceCandidate,
+  RTCSessionDescription: (globalThis as any).RTCSessionDescription,
+  mediaDevices: (globalThis as any).navigator?.mediaDevices,
+};
+
+function isWebRTCAvailable(): boolean {
+  return !!(
+    WebRTCAPI.RTCPeerConnection &&
+    WebRTCAPI.RTCIceCandidate &&
+    WebRTCAPI.RTCSessionDescription &&
+    WebRTCAPI.mediaDevices
+  );
+}
+
 let peerConnection: RTCPeerConnection | null = null;
 let localStream: MediaStream | null = null;
 let remoteStream: MediaStream | null = null;
@@ -37,6 +60,12 @@ export async function initializeWebRTC(): Promise<void> {
     console.log('[WebRTC] Initialized for web platform');
     return;
   }
+
+  if (!isWebRTCAvailable()) {
+    console.warn('[WebRTC] WebRTC primitives are unavailable on this runtime');
+    return;
+  }
+
   console.log('[WebRTC] WebRTC service initialized');
 }
 
@@ -49,10 +78,15 @@ export async function createPeerConnection(
     peerConnection.close();
   }
 
-  console.log('[WebRTC] Creating new peer connection');
-  peerConnection = new RTCPeerConnection(config);
+  if (!isWebRTCAvailable()) {
+    throw new Error('WebRTC is not available in this runtime');
+  }
 
-  peerConnection.ontrack = (event) => {
+  console.log('[WebRTC] Creating new peer connection');
+  const pc = new WebRTCAPI.RTCPeerConnection(config);
+  peerConnection = pc;
+
+  pc.ontrack = (event: RTCTrackEvent) => {
     console.log('[WebRTC] Received remote track:', event.track.kind);
     if (event.streams && event.streams[0]) {
       remoteStream = event.streams[0];
@@ -60,14 +94,14 @@ export async function createPeerConnection(
     }
   };
 
-  peerConnection.onicecandidate = (event) => {
+  pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
     if (event.candidate) {
       console.log('[WebRTC] New ICE candidate generated');
       callbacks.onIceCandidate?.(event.candidate);
     }
   };
 
-  peerConnection.onconnectionstatechange = () => {
+  pc.onconnectionstatechange = () => {
     const state = peerConnection?.connectionState;
     console.log('[WebRTC] Connection state changed:', state);
     if (state) {
@@ -75,11 +109,11 @@ export async function createPeerConnection(
     }
   };
 
-  peerConnection.onicecandidateerror = (event: any) => {
+  pc.onicecandidateerror = (event: any) => {
     console.error('[WebRTC] ICE candidate error:', event);
   };
 
-  return peerConnection;
+  return pc;
 }
 
 export async function startLocalStream(
@@ -90,10 +124,9 @@ export async function startLocalStream(
     console.log('[WebRTC] Starting local stream, audio:', audio, 'video:', video);
 
     if (Platform.OS === 'web') {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio, video });
+      localStream = await WebRTCAPI.mediaDevices.getUserMedia({ audio, video });
     } else {
-      const mediaDevices = navigator.mediaDevices as any;
-      localStream = await mediaDevices.getUserMedia({
+      localStream = await WebRTCAPI.mediaDevices.getUserMedia({
         audio: audio ? {
           echoCancellation: true,
           noiseSuppression: true,
@@ -163,7 +196,7 @@ export async function createAnswer(
   }
 
   console.log('[WebRTC] Creating answer for offer');
-  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  await peerConnection.setRemoteDescription(new WebRTCAPI.RTCSessionDescription(offer));
 
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
@@ -180,7 +213,7 @@ export async function setRemoteDescription(
   }
 
   console.log('[WebRTC] Setting remote description:', description.type);
-  await peerConnection.setRemoteDescription(new RTCSessionDescription(description));
+  await peerConnection.setRemoteDescription(new WebRTCAPI.RTCSessionDescription(description));
 }
 
 export async function addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
@@ -189,7 +222,7 @@ export async function addIceCandidate(candidate: RTCIceCandidateInit): Promise<v
   }
 
   console.log('[WebRTC] Adding ICE candidate');
-  await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+  await peerConnection.addIceCandidate(new WebRTCAPI.RTCIceCandidate(candidate));
 }
 
 export function stopLocalStream(): void {
