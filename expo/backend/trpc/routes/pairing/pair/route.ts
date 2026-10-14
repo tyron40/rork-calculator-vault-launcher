@@ -41,6 +41,7 @@ export const pairDeviceProcedure = publicProcedure
         isOnline: true,
       };
       
+      store.pairingStore.delete(input.code);
       const existingDevices = store.pairedDevicesStore.get(pairing.deviceId) || [];
       const updatedDevices = [...existingDevices, pairedDevice];
       store.pairedDevicesStore.set(pairing.deviceId, updatedDevices);
