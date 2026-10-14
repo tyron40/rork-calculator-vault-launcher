@@ -4,7 +4,7 @@ import { getGlobalStore, type PairedDevice } from '../../storage';
 
 export const pairDeviceProcedure = publicProcedure
   .input(z.object({
-    code: z.string().min(6).max(12),
+    code: z.string().length(12),
     childDeviceId: z.string(),
     childName: z.string(),
   }))
