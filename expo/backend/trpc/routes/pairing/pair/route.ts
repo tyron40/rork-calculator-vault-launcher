@@ -15,17 +15,6 @@ export const pairDeviceProcedure = publicProcedure
       const store = getGlobalStore();
       let pairing = store.pairingStore.get(input.code);
 
-      if (!pairing && input.code === '2580') {
-        pairing = {
-          code: '2580',
-          deviceId: 'parent_static_2580',
-          deviceName: 'Parent Device',
-          deviceType: 'parent',
-          timestamp: Date.now(),
-          expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
-        };
-      }
-
       if (!pairing) {
         throw new Error('Invalid or expired pairing code');
       }
