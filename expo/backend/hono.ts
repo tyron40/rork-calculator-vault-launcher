@@ -91,32 +91,4 @@ app.get("/", (c) => {
   });
 });
 
-app.get("/debug/codes", (c) => {
-  const store = getGlobalStore();
-  const codes = Array.from(store.pairingStore.entries()).map(([code, data]) => ({
-    code,
-    deviceType: data.deviceType,
-    deviceName: data.deviceName,
-    expiresAt: new Date(data.expiresAt).toISOString(),
-    isExpired: Date.now() > data.expiresAt,
-  }));
-  return c.json({ codes, total: codes.length });
-});
-
-app.get("/debug/trpc-procedures", (c) => {
-  const procedures = Object.keys((appRouter as any)?._def?.procedures ?? {}).sort();
-  return c.json({
-    total: procedures.length,
-    procedures,
-    timestamp: new Date().toISOString(),
-  });
-});
-
-app.get("/debug/devices/:parentId", (c) => {
-  const parentId = c.req.param('parentId');
-  const store = getGlobalStore();
-  const devices = store.pairedDevicesStore.get(parentId) || [];
-  return c.json({ parentId, devices, total: devices.length });
-});
-
 export default app;
