@@ -98,12 +98,11 @@ export default function ChildDashboardScreen() {
           const pending = commands.filter((c) => c.status === 'pending');
 
           for (const cmd of pending) {
-            await updateCommandStatus(childDeviceId, cmd.id, 'executing');
             await updateCommandStatus(
               childDeviceId,
               cmd.id,
-              'completed',
-              `Executed ${cmd.type} at ${new Date().toISOString()}`
+              'failed',
+              'Command execution is not implemented on this device.'
             );
           }
         } catch (error) {
