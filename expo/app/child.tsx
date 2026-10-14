@@ -19,7 +19,7 @@ import { getRemoteCommands, updateCommandStatus, sendHeartbeat } from '@/service
 export default function ChildDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [pairingCode] = useState<string>('2580');
+  const [pairingCode] = useState<string>('Not configured');
   const [inputCode, setInputCode] = useState<string>('');
   const [isPaired, setIsPaired] = useState<boolean>(false);
   const [parentDeviceName, setParentDeviceName] = useState<string>('');
