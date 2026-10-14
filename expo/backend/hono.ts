@@ -3,7 +3,6 @@ import { trpcServer } from "@hono/trpc-server";
 import { cors } from "hono/cors";
 import { appRouter } from "./trpc/app-router";
 import { createContext } from "./trpc/create-context";
-import { getGlobalStore } from "./trpc/routes/storage";
 
 const app = new Hono();
 
@@ -78,17 +77,8 @@ function healthResponse() {
 app.get("/healthz", (c) => c.json(healthResponse()));
 app.get("/api/healthz", (c) => c.json(healthResponse()));
 
-app.get("/", (c) => {
-  const store = getGlobalStore();
-  return c.json({ 
-    status: "ok", 
-    message: "API is running",
-    debug: {
-      pairingCodesCount: store.pairingStore.size,
-      pairedDevicesCount: Array.from(store.pairedDevicesStore.values()).reduce((sum, devices) => sum + devices.length, 0),
-      timestamp: new Date().toISOString(),
-    }
-  });
-});
+app.get("/health", (c) => c.json(healthResponse()));
+app.get("/api/health", (c) => c.json(healthResponse()));
+app.get("/", (c) => c.json({ status: "ok", message: "API is running" }));
 
 export default app;
