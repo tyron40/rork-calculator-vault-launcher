@@ -10,7 +10,7 @@ export const pairDeviceProcedure = publicProcedure
   }))
   .mutation(async ({ input }) => {
     try {
-      console.log('[tRPC] Child pairing with parent code:', input.code);
+      console.log('[tRPC] Child pairing request received');
       
       const store = getGlobalStore();
       let pairing = store.pairingStore.get(input.code);
@@ -69,7 +69,7 @@ export const storePairingCodeProcedure = publicProcedure
   }))
   .mutation(async ({ input }) => {
     try {
-      console.log('[tRPC] Storing pairing code for', input.deviceType, ':', input.code);
+      console.log('[tRPC] Pairing code storage requested for', input.deviceType);
       
       const store = getGlobalStore();
       const expiresAt = Date.now() + (5 * 60 * 1000);
@@ -85,7 +85,7 @@ export const storePairingCodeProcedure = publicProcedure
       
       setTimeout(() => {
         store.pairingStore.delete(input.code);
-        console.log('[tRPC] Pairing code expired:', input.code);
+        console.log('[tRPC] Pairing code expired');
       }, 5 * 60 * 1000);
       
       console.log('[tRPC] Stored code. Store size:', store.pairingStore.size);
