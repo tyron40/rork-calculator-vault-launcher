@@ -7,7 +7,9 @@ import { StyleSheet, View, Text } from "react-native";
 import { trpc, trpcClient } from "@/lib/trpc";
 
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync().catch((error) => {
+  console.warn('[Startup] Unable to hold splash screen:', error);
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,7 +74,9 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync();
+    void SplashScreen.hideAsync().catch((error) => {
+      console.warn('[Startup] Unable to hide splash screen:', error);
+    });
   }, []);
 
   useEffect(() => {
