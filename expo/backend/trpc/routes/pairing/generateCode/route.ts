@@ -1,6 +1,6 @@
 import { publicProcedure } from "../../../create-context";
 import { z } from "zod";
-import * as nodeCrypto from "node:crypto";
+import * as Crypto from "expo-crypto";
 import { getGlobalStore } from '../../storage';
 
 export const generateCodeProcedure = publicProcedure
@@ -12,7 +12,7 @@ export const generateCodeProcedure = publicProcedure
   )
   .mutation(async ({ input }) => {
     try {
-      const code = nodeCrypto.randomBytes(6).toString('hex').toUpperCase();
+      const code = Array.from(await Crypto.getRandomBytesAsync(6), (byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
       const expiresAtTimestamp = Date.now() + 5 * 60 * 1000;
       
       const store = getGlobalStore();
