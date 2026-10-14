@@ -25,7 +25,7 @@ export default function ParentDashboardScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'devices' | 'connect' | 'settings'>('devices');
   const [pairingCode, setPairingCode] = useState<string>('');
-  const [generatedCode] = useState<string>('2580');
+  const [generatedCode] = useState<string>('Not configured');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
@@ -165,45 +165,7 @@ export default function ParentDashboardScreen() {
   };
 
   const handlePairDevice = async () => {
-    if (!pairingCode.trim()) {
-      Alert.alert('Required', 'Please enter pairing code');
-      return;
-    }
-
-    const normalizedCode = pairingCode.trim();
-    if (normalizedCode !== generatedCode) {
-      Alert.alert('Invalid Code', 'The pairing code is incorrect.');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const childCode = `child_${Date.now()}`;
-      const newDevice: ConnectedDevice = {
-        id: childCode,
-        name: 'Child Device',
-        deviceId: childCode,
-        childName: `Child ${connectedDevices.length + 1}`,
-        lastSeen: new Date().toISOString(),
-        isOnline: true,
-        monitoringActive: false,
-      };
-
-      addConnectedDevice(newDevice);
-      setPairingCode('');
-      setActiveTab('devices');
-
-      Alert.alert(
-        'Device Paired',
-        `Successfully paired using static code ${generatedCode}.`,
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('[ParentDashboard] Error pairing device:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to pair device');
-    } finally {
-      setIsLoading(false);
-    }
+    Alert.alert('Secure pairing required', 'This version does not yet have an authenticated cross-device pairing service. No device has been connected.');
   };
 
   const handleDevicePress = (device: ConnectedDevice) => {
