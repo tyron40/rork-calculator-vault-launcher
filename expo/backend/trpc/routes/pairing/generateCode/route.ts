@@ -1,7 +1,7 @@
 import { publicProcedure } from "../../../create-context";
 import { z } from "zod";
 import { randomBytes } from "node:crypto";
-import { getGlobalStore } from '../../storage';
+import { pairingRpc } from '../database';
 
 export const generateCodeProcedure = publicProcedure
   .input(
@@ -13,35 +13,22 @@ export const generateCodeProcedure = publicProcedure
   .mutation(async ({ input }) => {
     try {
       const code = randomBytes(6).toString('hex').toUpperCase();
-      const expiresAtTimestamp = Date.now() + 5 * 60 * 1000;
-      
-      const store = getGlobalStore();
-      
-      store.pairingStore.set(code, {
-        code,
-        deviceId: input.parentDeviceId,
-        deviceName: input.deviceName || 'Parent Device',
-        deviceType: 'parent',
-        timestamp: Date.now(),
-        expiresAt: expiresAtTimestamp,
+      const deviceName = input.deviceName || 'Parent Device';
+      const persisted = await pairingRpc<{ expiresAt: string; createdAt: string }>('create_pairing_code', {
+        p_code: code,
+        p_device_id: input.parentDeviceId,
+        p_device_name: deviceName,
+        p_device_type: 'parent',
       });
-      
-      setTimeout(() => {
-        store.pairingStore.delete(code);
-        console.log('[Backend] A parent pairing code expired.');
-      }, 5 * 60 * 1000);
-      
+
       const pairingData = {
         code,
         parentDeviceId: input.parentDeviceId,
-        deviceName: input.deviceName || 'Parent Device',
-        expiresAt: new Date(expiresAtTimestamp).toISOString(),
-        createdAt: new Date().toISOString(),
+        deviceName,
+        expiresAt: persisted.expiresAt,
+        createdAt: persisted.createdAt,
       };
-      
-      console.log('[Backend] Generated a parent pairing code.');
-      console.log('[Backend] Store size:', store.pairingStore.size);
-      
+
       return pairingData;
     } catch (error) {
       console.error('[Backend] Error in generateCode:', error);

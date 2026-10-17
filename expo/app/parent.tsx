@@ -256,9 +256,12 @@ export default function ParentDashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              const device = connectedDevices.find((entry) => entry.id === deviceId);
+              if (parentDeviceId && device?.deviceId) {
+                await apiClient.pairing.unpairDevice(parentDeviceId, device.deviceId);
+              }
               removeConnectedDevice(deviceId);
-              const updatedDevices = connectedDevices.filter(d => d.id !== deviceId);
-              console.log('[ParentDashboard] Updated local in-memory device list after remove:', updatedDevices.length);
+              await getPairedDevicesQuery.refetch();
               Alert.alert('Success', 'Device removed');
             } catch (error) {
               console.error('[ParentDashboard] Error removing device:', error);

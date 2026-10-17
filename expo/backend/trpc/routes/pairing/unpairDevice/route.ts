@@ -1,6 +1,6 @@
 import { publicProcedure } from "../../../create-context";
+import { pairingRpc } from '../database';
 import { z } from "zod";
-import { getGlobalStore } from "../../storage";
 
 export const unpairDeviceProcedure = publicProcedure
   .input(
@@ -10,25 +10,13 @@ export const unpairDeviceProcedure = publicProcedure
     })
   )
   .mutation(async ({ input }) => {
-    const store = getGlobalStore();
-    const devices = store.pairedDevicesStore.get(input.parentDeviceId) || [];
-    const remainingDevices = devices.filter(
-      (device) => device.childDeviceId !== input.childDeviceId
-    );
-
-    if (remainingDevices.length === devices.length) {
-      return {
-        success: false,
-        message: "Paired device was not found",
-        unpairedAt: new Date().toISOString(),
-      };
-    }
-
-    store.pairedDevicesStore.set(input.parentDeviceId, remainingDevices);
-
+    await pairingRpc('unpair_device', {
+      p_parent_device_id: input.parentDeviceId,
+      p_child_device_id: input.childDeviceId,
+    });
     return {
       success: true,
-      message: "Device unpaired successfully",
+      message: 'Device unpaired successfully',
       unpairedAt: new Date().toISOString(),
     };
   });

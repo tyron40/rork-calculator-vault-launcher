@@ -147,7 +147,9 @@ export const apiClient = {
               success: boolean;
               parentDeviceId: string;
               parentDeviceName: string;
-              timestamp: string;
+              childDeviceId: string;
+              childName: string;
+              pairedAt: string;
             };
           };
         };
@@ -199,6 +201,15 @@ export const apiClient = {
         body: JSON.stringify({
           json: { childDeviceId },
         }),
+      });
+    },
+
+    unpairDevice: async (parentDeviceId: string, childDeviceId: string) => {
+      return apiCall<{
+        result: { data: { json: { success: boolean; message: string; unpairedAt: string } } };
+      }>('/api/trpc/pairing.unpairDevice', {
+        method: 'POST',
+        body: JSON.stringify({ json: { parentDeviceId, childDeviceId } }),
       });
     },
   },

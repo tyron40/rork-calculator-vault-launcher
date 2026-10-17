@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure } from '../../../create-context';
-import { getGlobalStore, type PairedDevice } from '../../storage';
+import { pairingRpc } from '../database';
 
 export const pairDeviceProcedure = publicProcedure
   .input(z.object({
@@ -10,50 +10,11 @@ export const pairDeviceProcedure = publicProcedure
   }))
   .mutation(async ({ input }) => {
     try {
-      console.log('[tRPC] Child pairing request received');
-      
-      const store = getGlobalStore();
-      let pairing = store.pairingStore.get(input.code);
-
-      if (!pairing) {
-        throw new Error('Invalid or expired pairing code');
-      }
-
-      if (Date.now() > pairing.expiresAt) {
-        store.pairingStore.delete(input.code);
-        throw new Error('Pairing code has expired');
-      }
-
-      if (pairing.deviceType !== 'parent') {
-        throw new Error('This code is not from a parent device');
-      }
-      
-      console.log('[tRPC] Pairing successful - Child paired with:', pairing.deviceName);
-      
-      const pairedDevice: PairedDevice = {
-        id: `paired_${Date.now()}`,
-        parentDeviceId: pairing.deviceId,
-        childDeviceId: input.childDeviceId,
-        childName: input.childName,
-        deviceName: input.childName,
-        pairedAt: new Date().toISOString(),
-        lastSeen: new Date().toISOString(),
-        isOnline: true,
-      };
-      
-      store.pairingStore.delete(input.code);
-      const existingDevices = store.pairedDevicesStore.get(pairing.deviceId) || [];
-      const updatedDevices = [...existingDevices, pairedDevice];
-      store.pairedDevicesStore.set(pairing.deviceId, updatedDevices);
-      
-      console.log('[tRPC] Stored paired device. Total devices for parent:', updatedDevices.length);
-      
-      return {
-        success: true,
-        parentDeviceId: pairing.deviceId,
-        parentDeviceName: pairing.deviceName,
-        timestamp: new Date().toISOString(),
-      };
+      return await pairingRpc('pair_child_with_parent_code', {
+        p_code: input.code.toUpperCase(),
+        p_child_device_id: input.childDeviceId,
+        p_child_name: input.childName,
+      });
     } catch (error) {
       console.error('[tRPC] Error in pairDevice:', error);
       throw error;
@@ -69,31 +30,17 @@ export const storePairingCodeProcedure = publicProcedure
   }))
   .mutation(async ({ input }) => {
     try {
-      console.log('[tRPC] Pairing code storage requested for', input.deviceType);
-      
-      const store = getGlobalStore();
-      const expiresAt = Date.now() + (5 * 60 * 1000);
-      
-      store.pairingStore.set(input.code, {
-        code: input.code,
-        deviceId: input.deviceId,
-        deviceName: input.deviceName,
-        deviceType: input.deviceType,
-        timestamp: Date.now(),
-        expiresAt,
+      const persisted = await pairingRpc<{ expiresAt: string }>('create_pairing_code', {
+        p_code: input.code.toUpperCase(),
+        p_device_id: input.deviceId,
+        p_device_name: input.deviceName,
+        p_device_type: input.deviceType,
       });
-      
-      setTimeout(() => {
-        store.pairingStore.delete(input.code);
-        console.log('[tRPC] Pairing code expired');
-      }, 5 * 60 * 1000);
-      
-      console.log('[tRPC] Stored code. Store size:', store.pairingStore.size);
-      
+
       return {
         success: true,
-        code: input.code,
-        expiresAt: new Date(expiresAt).toISOString(),
+        code: input.code.toUpperCase(),
+        expiresAt: persisted.expiresAt,
       };
     } catch (error) {
       console.error('[tRPC] Error in storePairingCode:', error);

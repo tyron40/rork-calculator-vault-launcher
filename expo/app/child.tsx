@@ -190,6 +190,11 @@ export default function ChildDashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              const childDeviceId = (await AsyncStorage.getItem('child_device_id')) || await AsyncStorage.getItem('device_id');
+              const parentId = await AsyncStorage.getItem('child_monitoring_parent_id');
+              if (childDeviceId && parentId) {
+                await apiClient.pairing.unpairDevice(parentId, childDeviceId);
+              }
               await AsyncStorage.removeItem('child_monitoring_parent_id');
               await AsyncStorage.removeItem('parent_device_name');
               await AsyncStorage.setItem('child_monitoring_active', 'false');

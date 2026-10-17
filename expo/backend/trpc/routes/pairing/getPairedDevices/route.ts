@@ -1,6 +1,6 @@
 import { publicProcedure } from "../../../create-context";
 import { z } from "zod";
-import { getGlobalStore } from '../../storage';
+import { pairingRpc } from '../database';
 
 export const getPairedDevicesProcedure = publicProcedure
   .input(
@@ -10,13 +10,10 @@ export const getPairedDevicesProcedure = publicProcedure
   )
   .query(async ({ input }) => {
     try {
-      console.log('[Backend] Getting paired devices for:', input.parentDeviceId);
-      
-      const store = getGlobalStore();
-      const devices = store.pairedDevicesStore.get(input.parentDeviceId) || [];
-      
-      console.log('[Backend] Found devices:', devices.length);
-      
+      const devices = await pairingRpc<Record<string, unknown>[]>('get_paired_devices', {
+        p_parent_device_id: input.parentDeviceId,
+      });
+
       return {
         devices,
         total: devices.length,
