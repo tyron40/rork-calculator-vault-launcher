@@ -7,7 +7,6 @@ import {
   Smartphone, 
   Plus, 
   Activity, 
-  BarChart3, 
   Settings as SettingsIcon,
   Radio,
   Link2,
@@ -189,10 +188,6 @@ export default function ParentDashboardScreen() {
             setSelectedDevice(device.id);
             router.push('/live-monitoring');
           },
-        },
-        {
-          text: 'View Dashboard',
-          onPress: () => router.push('/monitoring'),
         },
         {
           text: 'Remove Device',
@@ -416,14 +411,6 @@ export default function ParentDashboardScreen() {
 
         {activeTab === 'settings' && (
           <View style={styles.settingsTab}>
-            <TouchableOpacity
-              style={styles.dashboardButton}
-              onPress={() => router.push('/monitoring')}
-            >
-              <BarChart3 size={20} color="#ffffff" />
-              <Text style={styles.dashboardButtonText}>View Monitoring Dashboard</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.changeAccountButton}
               onPress={handleChangeAccount}
@@ -753,20 +740,6 @@ const styles = StyleSheet.create({
   settingsTab: {
     gap: 16,
     paddingBottom: 24,
-  },
-  dashboardButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 16,
-  },
-  dashboardButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#ffffff',
   },
   changeAccountButton: {
     flexDirection: 'row',
