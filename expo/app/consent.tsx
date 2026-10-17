@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ShieldCheck, AlertCircle, Users, User, Calculator } from 'lucide-react-native';
+import { ShieldCheck, AlertCircle, Users, User } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserRole } from '@/store/vaultStore';
 
@@ -65,23 +65,19 @@ export default function ConsentScreen() {
       console.log('[Consent] Consent granted successfully');
       
       const message = userRole === 'parent' 
-        ? 'Parent mode enabled. You can monitor connected child devices.'
-        : 'Child mode enabled with parental consent. Monitoring is active for safety.';
+        ? 'Parent mode enabled. You can pair child devices and view connection status.'
+        : 'Child mode enabled with parental consent. Pairing shares connection status only.';
       
-      if (Platform.OS === 'web') {
-        router.replace('/role-selection');
-      } else {
-        Alert.alert(
-          'Consent Granted',
-          message,
-          [
-            {
-              text: 'Continue',
-              onPress: () => router.replace('/role-selection'),
-            },
-          ]
-        );
-      }
+      Alert.alert(
+        'Consent Granted',
+        message,
+        [
+          {
+            text: 'Continue',
+            onPress: () => router.replace('/role-selection'),
+          },
+        ]
+      );
     } catch (error) {
       console.error('[Consent] Error saving consent:', error);
       Alert.alert('Error', 'Failed to save consent information');
@@ -114,7 +110,7 @@ export default function ConsentScreen() {
               </View>
               <Text style={styles.roleTitle}>Parent/Guardian</Text>
               <Text style={styles.roleDescription}>
-                Monitor child devices with live audio, camera access, remote control, and activity logs.
+                Pair child devices and view their connection status.
               </Text>
             </TouchableOpacity>
 
@@ -127,24 +123,10 @@ export default function ConsentScreen() {
               </View>
               <Text style={styles.roleTitle}>Child</Text>
               <Text style={styles.roleDescription}>
-                This device will be monitored by a parent/guardian for safety with full consent.
+                Pairing shares this device’s connection status with the parent dashboard.
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.disguiseButton}
-              onPress={async () => {
-                try {
-                  await AsyncStorage.setItem('calculator_disguise_mode', 'true');
-                  router.replace('/disguise');
-                } catch (error) {
-                  console.error('[Consent] Error entering disguise mode:', error);
-                }
-              }}
-            >
-              <Calculator size={20} color="#8b5cf6" />
-              <Text style={styles.disguiseButtonText}>Switch to Calculator Disguise</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -170,8 +152,8 @@ export default function ConsentScreen() {
           </Text>
           <Text style={styles.subtitle}>
             {userRole === 'parent' 
-              ? 'Set up monitoring for your child devices'
-              : 'Parental monitoring with consent'}
+              ? 'Set up your parent PIN and pair child devices'
+              : 'Pair this device with a parent account'}
           </Text>
         </View>
 
@@ -180,8 +162,8 @@ export default function ConsentScreen() {
             <AlertCircle size={20} color="#f59e0b" />
             <Text style={styles.infoText}>
               {userRole === 'parent'
-                ? 'You can monitor connected child devices including activity logs, audio monitoring, and remote control.'
-                : 'This app provides parental monitoring with full consent. All monitoring is for safety purposes.'}
+                ? 'This release lets you pair devices and view their connection status. It does not include live screen, camera, microphone, or remote-control features.'
+                : 'Pairing shares connection status only. Live sharing is not available in this release.'}
             </Text>
           </View>
 
@@ -213,8 +195,8 @@ export default function ConsentScreen() {
             <Text style={styles.termsTitle}>Terms & Conditions</Text>
             <Text style={styles.termsText}>
               {userRole === 'parent' 
-                ? '• Use monitoring responsibly and legally\n• Obtain consent before monitoring any device\n• Data is stored securely and privately\n• Remote control requires child device consent\n• All monitoring complies with local laws\n• Respect privacy and use for safety only'
-                : '• This app is for legal parental monitoring only\n• You are aware monitoring is active\n• Audio monitoring is for safety purposes\n• Device activity is logged for parental review\n• All monitoring complies with local laws\n• Data is stored securely on device'}
+                ? '• Pair only devices you are authorized to connect\n• Pairing exposes connection status to linked devices\n• Live screen, camera, microphone, and remote control are not available in this release\n• Any future sharing session must be approved on the device'
+                : '• Pairing shares connection status with the parent dashboard\n• This release does not stream your screen, camera, or microphone\n• This release does not provide remote control\n• Any future sharing session must be approved on this device'}
             </Text>
 
             <View style={styles.switchContainer}>
@@ -388,24 +370,6 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#8b5cf6',
-  },
-  disguiseButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2d3142',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 8,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#8b5cf6',
-  },
-  disguiseButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
     color: '#8b5cf6',
   },
 });

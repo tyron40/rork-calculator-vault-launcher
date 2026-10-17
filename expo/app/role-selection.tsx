@@ -20,15 +20,9 @@ export default function RoleSelectionScreen() {
       const parentPin = await AsyncStorage.getItem('parent_pin');
       const childPin = await AsyncStorage.getItem('child_pin');
       const userRole = await AsyncStorage.getItem('user_role');
-      
-      if (!parentPin && !childPin) {
-        setIsSettingUp(true);
-        if (userRole === 'parent' || userRole === 'child') {
-          setSelectedRole(userRole);
-        }
-      } else {
-        setIsSettingUp(false);
-      }
+
+      setIsSettingUp(!parentPin && !childPin);
+      if (userRole === 'parent' || userRole === 'child') setSelectedRole(userRole);
     } catch (error) {
       console.error('[RoleSelection] Error checking setup:', error);
     }
@@ -138,8 +132,7 @@ export default function RoleSelectionScreen() {
     }
   };
 
-  const handleCalculatorDisguise = async () => {
-    await AsyncStorage.setItem('calculator_disguise_mode', 'true');
+  const handleOpenCalculator = async () => {
     router.replace('/');
   };
 
@@ -192,7 +185,7 @@ export default function RoleSelectionScreen() {
               styles.optionDescription,
               selectedRole === 'parent' && styles.optionDescriptionSelected,
             ]}>
-              Full monitoring and control features
+              Pair child devices and view connection status
             </Text>
           </TouchableOpacity>
 
@@ -231,7 +224,7 @@ export default function RoleSelectionScreen() {
               styles.optionDescription,
               selectedRole === 'child' && styles.optionDescriptionSelected,
             ]}>
-              Monitored device with parental consent
+              Pair this device to a parent; live sharing stays off
             </Text>
           </TouchableOpacity>
         </View>
@@ -275,21 +268,26 @@ export default function RoleSelectionScreen() {
         </TouchableOpacity>
 
         {!isSettingUp && (
+          <>
           <TouchableOpacity
             style={styles.disguiseButton}
-            onPress={handleCalculatorDisguise}
+            onPress={handleOpenCalculator}
             activeOpacity={0.8}
           >
             <Calculator size={20} color="#8b5cf6" />
             <Text style={styles.disguiseButtonText}>
-              Switch to Calculator Disguise
+              Open Calculator View
             </Text>
           </TouchableOpacity>
+          <Text style={styles.calculatorModeHint}>
+            This is a normal calculator view. The account dashboard remains available through its visible button.
+          </Text>
+          </>
         )}
 
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            ℹ️ This app requires parental consent and is designed for legal parental monitoring with full transparency.
+            ℹ️ Pairing and connection status are visible on both devices. This release does not stream the screen, camera, or microphone or provide remote control.
           </Text>
         </View>
       </ScrollView>
@@ -453,6 +451,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: '#8b5cf6',
+  },
+  calculatorModeHint: {
+    color: '#9ca3af',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginTop: -8,
+    marginBottom: 16,
   },
   infoBox: {
     backgroundColor: '#2d3142',

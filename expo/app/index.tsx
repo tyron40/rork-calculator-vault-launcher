@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function CalculatorDisguise() {
+export default function CalculatorHome() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -13,7 +13,6 @@ export default function CalculatorDisguise() {
   const [previousValue, setPreviousValue] = useState<number | null>(null);
   const [operation, setOperation] = useState<string | null>(null);
   const [waitingForOperand, setWaitingForOperand] = useState<boolean>(false);
-  const [pinBuffer, setPinBuffer] = useState<string>('');
 
   const handleResetSetup = useCallback(async () => {
     const confirmed = Platform.OS === 'web'
@@ -67,8 +66,7 @@ export default function CalculatorDisguise() {
         return;
       }
       
-      console.log('[Calculator] Calculator disguise ready');
-      console.log('[Calculator] To access: Type your PIN and press =');
+      console.log('[Calculator] Calculator view ready; dashboard access is visible.');
       setIsLoading(false);
     } catch (error) {
       console.error('[Calculator] Error checking initialization:', error);
@@ -89,102 +87,8 @@ export default function CalculatorDisguise() {
     }
   }, []);
 
-  const normalizePin = (pin: string | null): string => {
-    if (!pin) return '';
-    const normalized = String(pin).trim().replace(/[^0-9]/g, '');
-    console.log('[Calculator] normalizePin input:', JSON.stringify(pin), 'output:', JSON.stringify(normalized));
-    return normalized;
-  };
-
-  const checkPinAndRedirect = useCallback(async (pin: string) => {
-    try {
-      const enteredPin = normalizePin(pin);
-      console.log('[Calculator] Checking PIN - Length:', enteredPin.length);
-      
-      const storedRole = await AsyncStorage.getItem('user_role');
-      const parentPin = await AsyncStorage.getItem('parent_pin');
-      const childPin = await AsyncStorage.getItem('child_pin');
-      
-      console.log('[Calculator] Stored data - Role:', storedRole);
-      console.log('[Calculator] Parent PIN exists:', !!parentPin, 'Length:', parentPin?.length);
-      console.log('[Calculator] Child PIN exists:', !!childPin, 'Length:', childPin?.length);
-      
-      const hasNoSetup = !parentPin && !childPin;
-      
-      if (hasNoSetup) {
-        console.log('[Calculator] No setup found, redirecting to role selection');
-        hapticFeedback();
-        setPinBuffer('');
-        setDisplay('0');
-        setPreviousValue(null);
-        setOperation(null);
-        setWaitingForOperand(false);
-        router.replace('/role-selection');
-        return true;
-      }
-      
-      let isCorrectPin = false;
-      let redirectTo: '/' | '/parent' | '/child' | '/role-selection' = '/role-selection';
-      
-      const normalizedParentPin = normalizePin(parentPin);
-      const normalizedChildPin = normalizePin(childPin);
-      
-      if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
-        console.log('[Calculator] Parent PIN matched');
-        isCorrectPin = true;
-        redirectTo = '/parent';
-      } else if (storedRole === 'child' && normalizedChildPin && normalizedChildPin === enteredPin) {
-        console.log('[Calculator] Child PIN matched');
-        isCorrectPin = true;
-        redirectTo = '/child';
-      } else if (!storedRole && normalizedParentPin && normalizedParentPin === enteredPin) {
-        console.log('[Calculator] Parent PIN matched (no active role)');
-        isCorrectPin = true;
-        await AsyncStorage.setItem('user_role', 'parent');
-        redirectTo = '/parent';
-      } else if (!storedRole && normalizedChildPin && normalizedChildPin === enteredPin) {
-        console.log('[Calculator] Child PIN matched (no active role)');
-        isCorrectPin = true;
-        await AsyncStorage.setItem('user_role', 'child');
-        redirectTo = '/child';
-      }
-      
-      if (isCorrectPin) {
-        console.log('[Calculator] PIN accepted! Redirecting to:', redirectTo);
-        hapticFeedback();
-        setPinBuffer('');
-        setDisplay('0');
-        setPreviousValue(null);
-        setOperation(null);
-        setWaitingForOperand(false);
-        router.replace(redirectTo);
-        return true;
-      }
-      
-      console.log('[Calculator] PIN verification FAILED');
-      console.log('[Calculator] ==== TROUBLESHOOTING INFO ====');
-      console.log('[Calculator] If you are having trouble logging in:');
-      console.log('[Calculator] 1. Check if you set up the device correctly');
-      console.log('[Calculator] 2. Try entering: Parent PIN or Child PIN');
-      console.log('[Calculator] 3. Long press on calculator display to reset');
-      console.log('[Calculator] ===================================');
-      
-      setPinBuffer('');
-      setDisplay('0');
-      Alert.alert('Incorrect PIN', 'Enter the PIN you created during setup. Use “Forgot PIN?” below to start setup again.');
-      return false;
-    } catch (error) {
-      console.error('[Calculator] Error checking PIN:', error);
-      setPinBuffer('');
-      setDisplay('0');
-      return false;
-    }
-  }, [router, hapticFeedback]);
-
   const handleNumber = useCallback((num: string) => {
     hapticFeedback();
-    
-    setPinBuffer((prev) => prev + num);
 
     if (waitingForOperand) {
       setDisplay(num);
@@ -205,19 +109,8 @@ export default function CalculatorDisguise() {
     }
   }, [display, waitingForOperand, hapticFeedback]);
 
-  const handleOperation = useCallback(async (nextOp: string) => {
+  const handleOperation = useCallback((nextOp: string) => {
     hapticFeedback();
-    
-    const currentPinBuffer = pinBuffer;
-    
-    if (currentPinBuffer.length >= 4) {
-      const success = await checkPinAndRedirect(currentPinBuffer);
-      if (success) {
-        return;
-      }
-    }
-    
-    setPinBuffer('');
     
     const inputValue = parseFloat(display);
 
@@ -251,19 +144,10 @@ export default function CalculatorDisguise() {
 
     setWaitingForOperand(true);
     setOperation(nextOp);
-  }, [display, previousValue, operation, pinBuffer, hapticFeedback, checkPinAndRedirect]);
+  }, [display, previousValue, operation, hapticFeedback]);
 
-  const handleEquals = useCallback(async () => {
+  const handleEquals = useCallback(() => {
     hapticFeedback();
-    
-    const currentPinBuffer = pinBuffer;
-    
-    if (currentPinBuffer.length >= 4) {
-      const success = await checkPinAndRedirect(currentPinBuffer);
-      if (success) {
-        return;
-      }
-    }
 
     const inputValue = parseFloat(display);
 
@@ -294,7 +178,7 @@ export default function CalculatorDisguise() {
       setOperation(null);
       setWaitingForOperand(true);
     }
-  }, [display, previousValue, operation, pinBuffer, hapticFeedback, checkPinAndRedirect]);
+  }, [display, previousValue, operation, hapticFeedback]);
 
   const handleClear = useCallback(() => {
     hapticFeedback();
@@ -302,7 +186,6 @@ export default function CalculatorDisguise() {
     setPreviousValue(null);
     setOperation(null);
     setWaitingForOperand(false);
-    setPinBuffer('');
   }, [hapticFeedback]);
 
   const handleClearEntry = useCallback(() => {
@@ -311,54 +194,28 @@ export default function CalculatorDisguise() {
     setWaitingForOperand(false);
   }, [hapticFeedback]);
 
-  const handlePercent = useCallback(async () => {
+  const handlePercent = useCallback(() => {
     hapticFeedback();
-    
-    const currentPinBuffer = pinBuffer;
-    
-    if (currentPinBuffer.length >= 4) {
-      const success = await checkPinAndRedirect(currentPinBuffer);
-      if (success) {
-        return;
-      }
-    }
-    
-    setPinBuffer('');
     const currentValue = parseFloat(display);
     setDisplay(String(currentValue / 100));
     setWaitingForOperand(true);
-  }, [display, pinBuffer, hapticFeedback, checkPinAndRedirect]);
+  }, [display, hapticFeedback]);
 
-  const handlePlusMinus = useCallback(async () => {
+  const handlePlusMinus = useCallback(() => {
     hapticFeedback();
-    
-    const currentPinBuffer = pinBuffer;
-    
-    if (currentPinBuffer.length >= 4) {
-      const success = await checkPinAndRedirect(currentPinBuffer);
-      if (success) {
-        return;
-      }
-    }
-    
-    setPinBuffer('');
     const currentValue = parseFloat(display);
     setDisplay(String(-currentValue));
-  }, [display, pinBuffer, hapticFeedback, checkPinAndRedirect]);
+  }, [display, hapticFeedback]);
 
   const handleBackspace = useCallback(() => {
     hapticFeedback();
-    
-    if (pinBuffer.length > 0) {
-      setPinBuffer((prev) => prev.slice(0, -1));
-    }
     
     if (display.length > 1) {
       setDisplay((prev) => prev.slice(0, -1));
     } else {
       setDisplay('0');
     }
-  }, [display, pinBuffer, hapticFeedback]);
+  }, [display, hapticFeedback]);
 
   const Button = ({ 
     value, 
@@ -406,6 +263,16 @@ export default function CalculatorDisguise() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <View style={styles.topBar}>
+        <Text style={styles.appMark}>Calculator</Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.dashboardButton}
+          onPress={() => router.push('/role-selection')}
+        >
+          <Text style={styles.dashboardButtonText}>Account dashboard</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.displayContainer}>
         {operation && previousValue !== null && (
           <Text style={styles.operationDisplay}>
@@ -462,14 +329,6 @@ export default function CalculatorDisguise() {
         <Text style={styles.resetSetupText}>Forgot PIN? Reset setup</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.exitHint}
-        onPress={async () => {
-          Alert.alert('Calculator', 'Enter your PIN and press = to open your dashboard.');
-        }}
-      >
-        <Text style={styles.exitHintText}>ⓘ</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -480,6 +339,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     paddingHorizontal: 20,
     paddingBottom: 20,
+  },
+  topBar: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  appMark: {
+    color: '#9ca3af',
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  dashboardButton: {
+    minHeight: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#273244',
+  },
+  dashboardButtonText: {
+    color: '#bfdbfe',
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
   loadingContainer: {
     flex: 1,
@@ -564,19 +447,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888888',
     textDecorationLine: 'underline',
-  },
-  exitHint: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    opacity: 0.3,
-  },
-  exitHintText: {
-    fontSize: 24,
-    color: '#ffffff',
   },
 });

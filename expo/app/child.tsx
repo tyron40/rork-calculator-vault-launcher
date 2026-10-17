@@ -217,16 +217,16 @@ export default function ChildDashboardScreen() {
 
 
 
-  const handleToggleDisguise = () => {
+  const handleOpenCalculator = () => {
     Alert.alert(
-      'Switch to Calculator',
-      'This will show the calculator disguise. You can return by entering your child PIN on the calculator and pressing =.',
+      'Open calculator view?',
+      'The calculator will remain a normal calculator. Return to account access with the visible Account dashboard button at the top.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Switch',
+          text: 'Open calculator',
           onPress: () => {
-            console.log('[ChildDashboard] Switching to calculator disguise');
+            console.log('[ChildDashboard] Opening calculator view');
             router.replace('/');
           },
         },
@@ -271,7 +271,7 @@ export default function ChildDashboardScreen() {
           <TouchableOpacity style={styles.changeAccountButton} onPress={handleChangeAccount}>
             <LogOut size={20} color="#ffffff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.disguiseButton} onPress={handleToggleDisguise}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open calculator view" style={styles.disguiseButton} onPress={handleOpenCalculator}>
             <Calculator size={20} color="#ffffff" />
           </TouchableOpacity>
         </View>

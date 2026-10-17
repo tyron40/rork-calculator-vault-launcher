@@ -9,7 +9,7 @@ import { useVaultStore } from '@/store/vaultStore';
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { isLocked, userRole } = useVaultStore();
+  const { isLocked } = useVaultStore();
 
   const handleComplete = async () => {
     try {
@@ -21,6 +21,9 @@ export default function OnboardingScreen() {
       if (userRole === 'parent' && !isLocked) {
         console.log('[Onboarding] Redirecting to parent dashboard');
         router.replace('/parent');
+      } else if (userRole === 'child' && !isLocked) {
+        console.log('[Onboarding] Redirecting to child dashboard');
+        router.replace('/child');
       } else {
         router.replace('/');
       }
@@ -40,7 +43,7 @@ export default function OnboardingScreen() {
         </View>
         <Text style={styles.title}>Welcome to Parental Control</Text>
         <Text style={styles.subtitle}>
-          Your parental control app with calculator disguise is ready. Here&apos;s how it works:
+          Your family device app is ready. Here&apos;s how the calculator and pairing views work:
         </Text>
       </View>
 
@@ -50,9 +53,9 @@ export default function OnboardingScreen() {
             <Shield size={32} color="#8b5cf6" />
           </View>
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>1. Calculator Disguise</Text>
+            <Text style={styles.stepTitle}>1. Optional calculator view</Text>
             <Text style={styles.stepText}>
-              App appears as a normal calculator to others. Looks and functions exactly like a real calculator.
+              Use the calculator for calculations. A visible Account dashboard button stays available while using it.
             </Text>
           </View>
         </View>
@@ -62,9 +65,9 @@ export default function OnboardingScreen() {
             <Eye size={32} color="#8b5cf6" />
           </View>
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>2. Access Dashboard</Text>
+            <Text style={styles.stepTitle}>2. Account dashboard</Text>
             <Text style={styles.stepText}>
-              Type your PIN on the calculator and press = to access the {userRole === 'parent' ? 'parent monitoring dashboard' : 'app features'}
+              Open the dashboard from the visible button and sign in with your PIN.
             </Text>
           </View>
         </View>
@@ -74,11 +77,9 @@ export default function OnboardingScreen() {
             <Home size={32} color="#8b5cf6" />
           </View>
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>3. {userRole === 'parent' ? 'Monitor Devices' : 'Stay Safe'}</Text>
+            <Text style={styles.stepTitle}>3. Pair devices</Text>
             <Text style={styles.stepText}>
-              {userRole === 'parent'
-                ? 'Connect and monitor child devices with live audio, camera access, and remote control'
-                : 'Device monitoring is active for your safety with full parental consent'}
+              Pairing shares device connection status. This release does not stream screen, camera, or microphone and does not offer remote control.
             </Text>
           </View>
         </View>
@@ -87,10 +88,9 @@ export default function OnboardingScreen() {
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerTitle}>⚠️ Important</Text>
         <Text style={styles.disclaimerText}>
-          • All monitoring is consensual and legal{"\n"}
-          • Calculator disguise protects privacy{"\n"}
-          • {userRole === 'parent' ? 'Audio, camera, and remote control features require device permissions' : 'Monitoring helps keep you safe'}{"\n"}
-          • All data is stored securely on device
+          • Pairing and sharing are visible to both device users{"\n"}
+          • Live sharing is not available in this release{"\n"}
+          • Future sharing sessions must be started and approved on the device
         </Text>
       </View>
 

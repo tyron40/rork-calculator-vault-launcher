@@ -208,7 +208,7 @@ export default function SetupScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>👨‍👩‍👧 Parent PIN</Text>
                 <Text style={styles.sectionDescription}>
-                  Access monitoring dashboard and settings
+                  Sign in to the parent dashboard
                 </Text>
               </View>
 
@@ -243,7 +243,7 @@ export default function SetupScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>👶 Child PIN</Text>
                 <Text style={styles.sectionDescription}>
-                  Regular calculator access (vault hidden)
+                  PIN for the child account dashboard. Calculator view remains available separately.
                 </Text>
               </View>
 
@@ -335,8 +335,8 @@ export default function SetupScreen() {
             <Text style={styles.infoText}>
               💡 <Text style={{ fontWeight: '700' as const }}>Create a different PIN for each role.</Text>
               {userRole === 'parent' 
-                ? '\n\nParent PIN: Opens monitoring dashboard\nChild PIN: Opens calculator only\n\n🔐 To login: Type PIN on calculator and press ='
-                : '\n\n🔐 To login: Type PIN on calculator and press ='}
+                ? '\n\nParent PIN: Opens parent dashboard\nChild PIN: Opens child dashboard\n\nUse the visible Account dashboard button to sign in. Calculator view does not hide account features.'
+                : '\n\nYour PIN opens the child dashboard. Calculator view remains available with a visible dashboard button.'}
             </Text>
           </View>
         </View>

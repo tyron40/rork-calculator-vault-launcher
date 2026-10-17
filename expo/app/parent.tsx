@@ -140,16 +140,16 @@ export default function ParentDashboardScreen() {
     );
   };
 
-  const handleToggleDisguise = async () => {
+  const handleOpenCalculator = async () => {
     Alert.alert(
-      'Switch to Calculator',
-      'This will show the calculator disguise. You can return by entering your parent PIN on the calculator and pressing =.',
+      'Open calculator view?',
+      'The calculator will remain a normal calculator. Return to account access with the visible Account dashboard button at the top.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Switch',
+          text: 'Open calculator',
           onPress: () => {
-            console.log('[ParentDashboard] Switching to calculator disguise');
+            console.log('[ParentDashboard] Opening calculator view');
             router.replace('/');
           },
         },
@@ -247,7 +247,7 @@ export default function ParentDashboardScreen() {
           <Text style={styles.headerSubtitle}>{connectedDevices.length} devices connected</Text>
         </View>
         <View style={styles.headerButtons}>
-          <TouchableOpacity style={styles.disguiseButton} onPress={handleToggleDisguise}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open calculator view" style={styles.disguiseButton} onPress={handleOpenCalculator}>
             <Calculator size={20} color="#ffffff" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.lockButton} onPress={handleLock}>
