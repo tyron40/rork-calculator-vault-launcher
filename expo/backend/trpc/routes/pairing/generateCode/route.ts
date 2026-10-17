@@ -28,7 +28,7 @@ export const generateCodeProcedure = publicProcedure
       
       setTimeout(() => {
         store.pairingStore.delete(code);
-        console.log('[Backend] Parent pairing code expired:', code);
+        console.log('[Backend] A parent pairing code expired.');
       }, 5 * 60 * 1000);
       
       const pairingData = {
@@ -39,7 +39,7 @@ export const generateCodeProcedure = publicProcedure
         createdAt: new Date().toISOString(),
       };
       
-      console.log('[Backend] Generated parent pairing code:', code);
+      console.log('[Backend] Generated a parent pairing code.');
       console.log('[Backend] Store size:', store.pairingStore.size);
       
       return pairingData;
