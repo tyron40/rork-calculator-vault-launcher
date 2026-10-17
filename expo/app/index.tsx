@@ -15,6 +15,26 @@ export default function CalculatorDisguise() {
   const [waitingForOperand, setWaitingForOperand] = useState<boolean>(false);
   const [pinBuffer, setPinBuffer] = useState<string>('');
 
+  const handleResetSetup = useCallback(async () => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Reset this device and create a new PIN? This clears the current setup.')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert('Reset setup?', 'This clears the current PIN and consent settings.', [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Reset', style: 'destructive', onPress: () => resolve(true) },
+          ]);
+        });
+
+    if (!confirmed) return;
+
+    await AsyncStorage.multiRemove([
+      'parent_pin', 'child_pin', 'user_role', 'access_pin', 'parental_consent',
+      'device_id', 'parent_device_id', 'child_device_id', 'connection_config',
+      'pairing_code', 'child_monitoring_parent_id', 'parent_device_name', 'child_monitoring_active',
+    ]);
+    router.replace('/consent');
+  }, [router]);
+
   const checkInitialization = useCallback(async () => {
     try {
       console.log('[Calculator] Checking initial setup');
@@ -151,48 +171,7 @@ export default function CalculatorDisguise() {
       
       setPinBuffer('');
       setDisplay('0');
-      Alert.alert(
-        'Incorrect PIN',
-        'The PIN you entered is incorrect. Type the PIN assigned to this role, then press =. Long-press the display to reset this device if you forgot your PIN.',
-        [
-          { text: 'Try Again', style: 'default' },
-          {
-            text: 'Reset Device',
-            style: 'destructive',
-            onPress: () => {
-              Alert.alert(
-                'Reset Device?',
-                'This will clear all PINs and settings. You will need to set up the device again.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Reset',
-                    style: 'destructive',
-                    onPress: async () => {
-                      await AsyncStorage.multiRemove([
-                        'parent_pin',
-                        'child_pin',
-                        'user_role',
-                        'access_pin',
-                        'parental_consent',
-                        'device_id',
-                        'parent_device_id',
-                        'child_device_id',
-                        'connection_config',
-                        'pairing_code',
-                        'child_monitoring_parent_id',
-                        'parent_device_name',
-                        'child_monitoring_active',
-                      ]);
-                      router.replace('/consent');
-                    },
-                  },
-                ]
-              );
-            },
-          },
-        ]
-      );
+      Alert.alert('Incorrect PIN', 'Enter the PIN you created during setup. Use “Forgot PIN?” below to start setup again.');
       return false;
     } catch (error) {
       console.error('[Calculator] Error checking PIN:', error);
@@ -479,68 +458,14 @@ export default function CalculatorDisguise() {
         </View>
       </View>
 
+      <TouchableOpacity style={styles.resetSetupButton} onPress={handleResetSetup}>
+        <Text style={styles.resetSetupText}>Forgot PIN? Reset setup</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={styles.exitHint}
         onPress={async () => {
-          const role = await AsyncStorage.getItem('user_role');
-          const parentPin = await AsyncStorage.getItem('parent_pin');
-          const childPin = await AsyncStorage.getItem('child_pin');
-          
-          const debugInfo = `Role: ${role || 'Not set'}\nParent PIN: ${parentPin ? 'Set' : 'Not set'}\nChild PIN: ${childPin ? 'Set' : 'Not set'}`;
-          
-          Alert.alert(
-            'Calculator Info',
-            role === 'parent'
-              ? `This is a fully functional calculator.\n\nTo access the parent dashboard, type the parent PIN and press =.\n\nCurrent Setup:\n${debugInfo}`
-              : role === 'child'
-              ? `This is a fully functional calculator.\n\nTo access the child dashboard, type the child PIN and press =.\n\nCurrent Setup:\n${debugInfo}`
-              : `Enter your assigned PIN and press = to access the app.\n\nCurrent Setup:\n${debugInfo}`,
-            [
-              { text: 'OK', style: 'default' },
-              {
-                text: 'Reset Device',
-                style: 'destructive',
-                onPress: () => {
-                  Alert.alert(
-                    'Reset Device?',
-                    'This will clear all PINs and settings. You will need to set up the device again.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Reset',
-                        style: 'destructive',
-                        onPress: async () => {
-                          await AsyncStorage.multiRemove([
-                            'parent_pin',
-                            'child_pin',
-                            'user_role',
-                            'access_pin',
-                            'parental_consent',
-                            'device_id',
-                            'parent_device_id',
-                            'child_device_id',
-                            'connection_config',
-                            'pairing_code',
-                            'child_monitoring_parent_id',
-                            'parent_device_name',
-                            'child_monitoring_active',
-                          ]);
-                          router.replace('/consent');
-                        },
-                      },
-                    ]
-                  );
-                },
-              },
-            ]
-          );
-        }}
-        onLongPress={async () => {
-          Alert.alert(
-            'Debug Info',
-            'Check console for detailed PIN validation logs.\n\nPress and hold the display for 3 seconds to see reset option.',
-            [{ text: 'OK' }]
-          );
+          Alert.alert('Calculator', 'Enter your PIN and press = to open your dashboard.');
         }}
       >
         <Text style={styles.exitHintText}>ⓘ</Text>
@@ -629,6 +554,16 @@ const styles = StyleSheet.create({
   equalsText: {
     fontSize: 40,
     fontWeight: '600' as const,
+  },
+  resetSetupButton: {
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  resetSetupText: {
+    fontSize: 12,
+    color: '#888888',
+    textDecorationLine: 'underline',
   },
   exitHint: {
     position: 'absolute',
