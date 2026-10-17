@@ -45,31 +45,24 @@ export default function RoleSelectionScreen() {
       return;
     }
 
-    const rawPin = !loginPin || loginPin.trim() === '' ? '0000' : loginPin;
-    const pinToUse = normalizePin(rawPin);
+    const pinToUse = normalizePin(loginPin);
 
-    if (!pinToUse || pinToUse.length < 4) {
-      Alert.alert('Invalid PIN', 'Please enter a PIN with at least 4 digits (or leave empty for default 0000)');
+    if (pinToUse.length < 4 || pinToUse === '0000') {
+      Alert.alert('Choose a stronger PIN', 'Create a PIN with at least 4 digits. 0000 is not allowed for new setups.');
       return;
     }
 
     try {
       console.log('[RoleSelection] Setting up device with role:', selectedRole);
-      console.log('[RoleSelection] Normalized PIN length:', pinToUse.length, 'value:', pinToUse);
+      console.log('[RoleSelection] PIN length:', pinToUse.length);
       
       await AsyncStorage.setItem('access_pin', pinToUse);
       await AsyncStorage.setItem('user_role', selectedRole);
       
       if (selectedRole === 'parent') {
         await AsyncStorage.setItem('parent_pin', pinToUse);
-        await AsyncStorage.setItem('child_pin', '0000');
-        console.log('[RoleSelection] Parent PIN saved (normalized):', pinToUse);
-        console.log('[RoleSelection] Child PIN saved as default: 0000');
       } else {
         await AsyncStorage.setItem('child_pin', pinToUse);
-        await AsyncStorage.setItem('parent_pin', '0000');
-        console.log('[RoleSelection] Child PIN saved (normalized):', pinToUse);
-        console.log('[RoleSelection] Parent PIN saved as default: 0000');
       }
       
       setStoreUserRole(selectedRole);
@@ -93,11 +86,10 @@ export default function RoleSelectionScreen() {
       return;
     }
 
-    const rawPin = !loginPin || loginPin.trim() === '' ? '0000' : loginPin;
-    const enteredPin = normalizePin(rawPin);
+    const enteredPin = normalizePin(loginPin);
 
     if (!enteredPin || enteredPin.length < 4) {
-      Alert.alert('Invalid PIN', 'Please enter your PIN (or leave empty for default 0000)');
+      Alert.alert('Invalid PIN', 'Please enter your PIN (at least 4 digits).');
       return;
     }
 
@@ -110,13 +102,11 @@ export default function RoleSelectionScreen() {
 
       const normalizedStoredPin = normalizePin(storedPin || '');
 
-      console.log('[RoleSelection] Stored PIN (normalized):', normalizedStoredPin, 'length:', normalizedStoredPin.length);
-      console.log('[RoleSelection] Entered PIN (normalized):', enteredPin, 'length:', enteredPin.length);
-      console.log('[RoleSelection] Master PIN check: enteredPin === 0000?', enteredPin === '0000');
+      console.log('[RoleSelection] Stored PIN configured:', !!normalizedStoredPin);
 
-      if (enteredPin !== normalizedStoredPin && enteredPin !== '0000') {
+      if (!normalizedStoredPin || enteredPin !== normalizedStoredPin) {
         console.log('[RoleSelection] PIN mismatch');
-        Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect. Default PIN is 0000.');
+        Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect.');
         setLoginPin('');
         return;
       }
@@ -238,23 +228,18 @@ export default function RoleSelectionScreen() {
 
         <View style={styles.pinSection}>
           <Text style={styles.pinLabel}>
-            {isSettingUp ? 'Create PIN (optional - default: 0000)' : 'Enter PIN'}
+            {isSettingUp ? 'Create a PIN' : 'Enter PIN'}
           </Text>
           {isSettingUp && (
             <Text style={styles.pinHint}>
-              💡 Leave empty to use default PIN: 0000
-            </Text>
-          )}
-          {!isSettingUp && (
-            <Text style={styles.pinHint}>
-              💡 Default PIN: 0000 works on all devices
+              Use a unique PIN with at least 4 digits.
             </Text>
           )}
           <TextInput
             style={styles.pinInput}
             value={loginPin}
             onChangeText={setLoginPin}
-            placeholder="0000 (default) - or enter your own"
+            placeholder="Create a secure PIN"
             placeholderTextColor="#6b7280"
             secureTextEntry
             keyboardType="number-pad"

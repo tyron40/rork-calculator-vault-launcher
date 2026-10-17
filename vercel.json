@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "installCommand": "npm --prefix expo install --no-package-lock",
+  "buildCommand": "npm --prefix expo run build:web",
+  "outputDirectory": "expo/dist",
+  "rewrites": [
+    { "source": "/consent", "destination": "/index.html" },
+    { "source": "/role-selection", "destination": "/index.html" },
+    { "source": "/setup", "destination": "/index.html" },
+    { "source": "/onboarding", "destination": "/index.html" },
+    { "source": "/vault", "destination": "/index.html" },
+    { "source": "/parent", "destination": "/index.html" },
+    { "source": "/child", "destination": "/index.html" },
+    { "source": "/monitoring", "destination": "/index.html" },
+    { "source": "/live-monitoring", "destination": "/index.html" },
+    { "source": "/disguise", "destination": "/index.html" }
+  ]
+}

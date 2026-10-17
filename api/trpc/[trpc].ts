@@ -1,3 +1,4 @@
-import app from "../../backend/hono";
+import { handle } from "hono/vercel";
+import app from "../../expo/backend/hono";
 
-export default app;
+export default handle(app);

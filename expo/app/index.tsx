@@ -79,9 +79,7 @@ export default function CalculatorDisguise() {
   const checkPinAndRedirect = useCallback(async (pin: string) => {
     try {
       const enteredPin = normalizePin(pin);
-      console.log('[Calculator] Checking PIN - Length:', enteredPin.length, 'Value:', enteredPin);
-      
-      const MASTER_PIN = '0000';
+      console.log('[Calculator] Checking PIN - Length:', enteredPin.length);
       
       const storedRole = await AsyncStorage.getItem('user_role');
       const parentPin = await AsyncStorage.getItem('parent_pin');
@@ -111,34 +109,7 @@ export default function CalculatorDisguise() {
       const normalizedParentPin = normalizePin(parentPin);
       const normalizedChildPin = normalizePin(childPin);
       
-      console.log('[Calculator] ===== PIN VALIDATION START =====');
-      console.log('[Calculator] Entered PIN:', JSON.stringify(enteredPin), 'length:', enteredPin.length);
-      console.log('[Calculator] Master PIN check:', enteredPin === MASTER_PIN);
-      console.log('[Calculator] Parent PIN (raw):', JSON.stringify(parentPin));
-      console.log('[Calculator] Parent PIN (normalized):', JSON.stringify(normalizedParentPin), 'length:', normalizedParentPin.length);
-      console.log('[Calculator] Child PIN (raw):', JSON.stringify(childPin));
-      console.log('[Calculator] Child PIN (normalized):', JSON.stringify(normalizedChildPin), 'length:', normalizedChildPin.length);
-      console.log('[Calculator] Current Role:', storedRole);
-      console.log('[Calculator] Parent PIN matches?:', normalizedParentPin === enteredPin);
-      console.log('[Calculator] Child PIN matches?:', normalizedChildPin === enteredPin);
-      console.log('[Calculator] ===== PIN VALIDATION END =====');
-      
-      if (enteredPin === MASTER_PIN || enteredPin === '0000') {
-        console.log('[Calculator] Master PIN "0000" matched - granting access');
-        isCorrectPin = true;
-        if (storedRole === 'parent' || (parentPin && parentPin !== childPin)) {
-          console.log('[Calculator] Redirecting to parent dashboard');
-          await AsyncStorage.setItem('user_role', 'parent');
-          redirectTo = '/parent';
-        } else if (storedRole === 'child' || childPin) {
-          console.log('[Calculator] Redirecting to child dashboard');
-          await AsyncStorage.setItem('user_role', 'child');
-          redirectTo = '/child';
-        } else {
-          console.log('[Calculator] No clear role, going to role selection');
-          redirectTo = '/role-selection';
-        }
-      } else if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
+      if (storedRole === 'parent' && normalizedParentPin && normalizedParentPin === enteredPin) {
         console.log('[Calculator] Parent PIN matched');
         isCorrectPin = true;
         redirectTo = '/parent';
@@ -146,12 +117,12 @@ export default function CalculatorDisguise() {
         console.log('[Calculator] Child PIN matched');
         isCorrectPin = true;
         redirectTo = '/child';
-      } else if (normalizedParentPin && normalizedParentPin === enteredPin) {
+      } else if (!storedRole && normalizedParentPin && normalizedParentPin === enteredPin) {
         console.log('[Calculator] Parent PIN matched (no active role)');
         isCorrectPin = true;
         await AsyncStorage.setItem('user_role', 'parent');
         redirectTo = '/parent';
-      } else if (normalizedChildPin && normalizedChildPin === enteredPin) {
+      } else if (!storedRole && normalizedChildPin && normalizedChildPin === enteredPin) {
         console.log('[Calculator] Child PIN matched (no active role)');
         isCorrectPin = true;
         await AsyncStorage.setItem('user_role', 'child');
@@ -182,7 +153,7 @@ export default function CalculatorDisguise() {
       setDisplay('0');
       Alert.alert(
         'Incorrect PIN',
-        'The PIN you entered is incorrect.\n\nTip: Type your PIN (4+ digits) then press = to login.\n\n💡 Default PIN "0000" always works on all devices.\n\nLong-press the display to reset if you forgot your PIN.',
+        'The PIN you entered is incorrect. Type the PIN assigned to this role, then press =. Long-press the display to reset this device if you forgot your PIN.',
         [
           { text: 'Try Again', style: 'default' },
           {
@@ -512,10 +483,10 @@ export default function CalculatorDisguise() {
           Alert.alert(
             'Calculator Info',
             role === 'parent'
-              ? `This is a fully functional calculator.\n\nTo access parent dashboard:\n1. Type your parent PIN (4+ digits)\n2. Press = button\n\n💡 TIP: PIN "0000" always works\n\nCurrent Setup:\n${debugInfo}`
+              ? `This is a fully functional calculator.\n\nTo access the parent dashboard, type the parent PIN and press =.\n\nCurrent Setup:\n${debugInfo}`
               : role === 'child'
-              ? `This is a fully functional calculator.\n\nTo access child dashboard:\n1. Type your child PIN (4+ digits)\n2. Press = button\n\n💡 TIP: PIN "0000" always works\n\nCurrent Setup:\n${debugInfo}`
-              : `Enter your PIN and press = to access the app\n\n💡 TIP: PIN "0000" always works\n\nCurrent Setup:\n${debugInfo}`,
+              ? `This is a fully functional calculator.\n\nTo access the child dashboard, type the child PIN and press =.\n\nCurrent Setup:\n${debugInfo}`
+              : `Enter your assigned PIN and press = to access the app.\n\nCurrent Setup:\n${debugInfo}`,
             [
               { text: 'OK', style: 'default' },
               {
