@@ -1,5 +1,5 @@
 # Backend API URL
-EXPO_PUBLIC_RORK_API_BASE_URL=https://rork-calculator-vault-launcher.vercel.app
+EXPO_PUBLIC_RORK_API_BASE_URL=https://rork-calculator-vault-launcher.onrender.com
 
 # Toolkit URL (required for AI features)
 EXPO_PUBLIC_TOOLKIT_URL=https://toolkit.rork.com
