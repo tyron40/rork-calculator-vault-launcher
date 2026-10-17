@@ -68,16 +68,20 @@ export default function ConsentScreen() {
         ? 'Parent mode enabled. You can monitor connected child devices.'
         : 'Child mode enabled with parental consent. Monitoring is active for safety.';
       
-      Alert.alert(
-        'Consent Granted',
-        message,
-        [
-          {
-            text: 'Continue',
-            onPress: () => router.replace('/role-selection'),
-          },
-        ]
-      );
+      if (Platform.OS === 'web') {
+        router.replace('/role-selection');
+      } else {
+        Alert.alert(
+          'Consent Granted',
+          message,
+          [
+            {
+              text: 'Continue',
+              onPress: () => router.replace('/role-selection'),
+            },
+          ]
+        );
+      }
     } catch (error) {
       console.error('[Consent] Error saving consent:', error);
       Alert.alert('Error', 'Failed to save consent information');
