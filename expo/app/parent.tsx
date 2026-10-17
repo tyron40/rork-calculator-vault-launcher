@@ -20,12 +20,13 @@ import { useVaultStore, ConnectedDevice } from '@/store/vaultStore';
 import { apiClient } from '@/lib/api-client';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { sendCommandToChild } from '@/services/connection';
+import { generateDeviceId, getDeviceName } from '@/services/connection';
 
 export default function ParentDashboardScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'devices' | 'connect' | 'settings'>('devices');
-  const [pairingCode, setPairingCode] = useState<string>('');
-  const [generatedCode] = useState<string>('Not configured');
+  const [generatedCode, setGeneratedCode] = useState<string>('');
+  const [codeExpiresAt, setCodeExpiresAt] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
@@ -81,11 +82,9 @@ export default function ParentDashboardScreen() {
 
   useEffect(() => {
     const loadParentId = async () => {
-      const id = await AsyncStorage.getItem('parent_device_id');
-      if (id) {
-        console.log('[ParentDashboard] Loaded parent device ID:', id);
-        setParentDeviceIdState(id);
-      }
+      const id = (await AsyncStorage.getItem('parent_device_id')) || await generateDeviceId();
+      await AsyncStorage.setItem('parent_device_id', id);
+      setParentDeviceIdState(id);
     };
     loadParentId();
   }, []);
@@ -165,7 +164,22 @@ export default function ParentDashboardScreen() {
   };
 
   const handlePairDevice = async () => {
-    Alert.alert('Secure pairing required', 'This version does not yet have an authenticated cross-device pairing service. No device has been connected.');
+    if (!parentDeviceId) {
+      Alert.alert('Please wait', 'Preparing this parent device. Try again in a moment.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const deviceName = await getDeviceName();
+      const response = await apiClient.pairing.generateCode(parentDeviceId, deviceName);
+      const codeData = response.result.data.json;
+      setGeneratedCode(codeData.code);
+      setCodeExpiresAt(codeData.expiresAt);
+    } catch (error) {
+      Alert.alert('Could not create code', error instanceof Error ? error.message : 'Check your internet connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDevicePress = (device: ConnectedDevice) => {
@@ -401,73 +415,35 @@ export default function ParentDashboardScreen() {
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <QrCode size={32} color="#8b5cf6" />
-                <Text style={styles.sectionTitle}>Static Pairing Code</Text>
+                <Text style={styles.sectionTitle}>Pair a Child Device</Text>
               </View>
               <Text style={styles.sectionDescription}>
-                Use this single code for all future device pairings
+                Create a secure code and enter it on the child device. Codes expire after five minutes.
               </Text>
 
               <View style={styles.codeDisplayContainer}>
-                <Text style={styles.codeDisplayLabel}>Share this code with child device</Text>
+                <Text style={styles.codeDisplayLabel}>Parent pairing code</Text>
                 <View style={styles.codeDisplay}>
-                  <Text style={styles.codeDisplayText}>{generatedCode}</Text>
+                  <Text style={styles.codeDisplayText}>{generatedCode || '------'}</Text>
                 </View>
                 <Text style={styles.codeExpiry}>
-                  ♾️ This code does not expire
+                  {codeExpiresAt ? `Expires ${new Date(codeExpiresAt).toLocaleTimeString()}` : 'Generate a new code when you are ready to pair'}
                 </Text>
+                <TouchableOpacity
+                  style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+                  onPress={handlePairDevice}
+                  disabled={isLoading || !parentDeviceId}
+                >
+                  <Plus size={20} color="#ffffff" />
+                  <Text style={styles.primaryButtonText}>{isLoading ? 'Generating...' : 'Generate Pairing Code'}</Text>
+                </TouchableOpacity>
               </View>
-            </View>
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Plus size={32} color="#3b82f6" />
-                <Text style={styles.sectionTitle}>Enter Child Code</Text>
-              </View>
-              <Text style={styles.sectionDescription}>
-                Enter the 6-character pairing code from the child device
-              </Text>
-
-              <View style={styles.codeInputContainer}>
-                <TextInput
-                  style={styles.codeInput}
-                  placeholder="XXXXXX"
-                  placeholderTextColor="#6b7280"
-                  value={pairingCode}
-                  onChangeText={(text) => setPairingCode(text.toUpperCase())}
-                  autoCapitalize="characters"
-                  maxLength={6}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
-                onPress={handlePairDevice}
-                disabled={isLoading}
-              >
-                <Plus size={20} color="#ffffff" />
-                <Text style={styles.primaryButtonText}>
-                  {isLoading ? 'Pairing...' : 'Pair Device'}
-                </Text>
-              </TouchableOpacity>
             </View>
 
             <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>💡 Two Ways to Connect</Text>
+              <Text style={styles.infoTitle}>How pairing works</Text>
               <Text style={styles.infoText}>
-                <Text style={{ fontWeight: '700' as const }}>Option 1: Generate Code Here{'\n'}</Text>
-                • Generate a pairing code on this device{'\n'}
-                • Child enters the code to connect{'\n'}
-                • Automatic pairing{'\n'}{'\n'}
-                <Text style={{ fontWeight: '700' as const }}>Option 2: Enter Child Code{'\n'}</Text>
-                • Child generates code on their device{'\n'}
-                • Enter that code here to pair{'\n'}
-                • Start monitoring immediately
+                Generate a code here, open the child device dashboard, and enter the code before it expires. Both devices need an internet connection.
               </Text>
             </View>
           </View>

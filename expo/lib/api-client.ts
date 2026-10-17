@@ -25,7 +25,7 @@ const BASE_URL = getBaseUrl();
 
 async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   
   try {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -79,11 +79,13 @@ export const apiClient = {
   pairing: {
     generateCode: async (parentDeviceId: string, deviceName?: string) => {
       return apiCall<{
-        code: string;
-        parentDeviceId: string;
-        deviceName: string;
-        expiresAt: string;
-        createdAt: string;
+        result: { data: { json: {
+          code: string;
+          parentDeviceId: string;
+          deviceName: string;
+          expiresAt: string;
+          createdAt: string;
+        } } };
       }>('/api/trpc/pairing.generateCode', {
         method: 'POST',
         body: JSON.stringify({

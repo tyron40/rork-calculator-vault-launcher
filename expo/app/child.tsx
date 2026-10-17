@@ -15,11 +15,12 @@ import {
 import { useVaultStore } from '@/store/vaultStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRemoteCommands, updateCommandStatus, sendHeartbeat } from '@/services/connection';
+import { generateDeviceId, getDeviceName } from '@/services/connection';
+import { apiClient } from '@/lib/api-client';
 
 export default function ChildDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [pairingCode] = useState<string>('Not configured');
   const [inputCode, setInputCode] = useState<string>('');
   const [isPaired, setIsPaired] = useState<boolean>(false);
   const [parentDeviceName, setParentDeviceName] = useState<string>('');
@@ -140,25 +141,25 @@ export default function ChildDashboardScreen() {
 
 
   const handleSubmitCode = async () => {
-    if (!inputCode.trim() || inputCode.length !== 4) {
-      Alert.alert('Invalid Code', 'Please enter the 4-digit parent pairing code');
-      return;
-    }
-
-    if (inputCode.trim() !== pairingCode) {
-      Alert.alert('Invalid Code', 'The parent pairing code is incorrect.');
+    const code = inputCode.trim().toUpperCase();
+    if (code.length !== 12) {
+      Alert.alert('Invalid Code', 'Enter the 12-character code shown on the parent device.');
       return;
     }
 
     try {
       setConnectionStatus('connecting');
-
-      const parentId = 'parent_static_2580';
-      const parentName = 'Parent Device';
+      const childDeviceId = (await AsyncStorage.getItem('child_device_id')) || await generateDeviceId();
+      const consent = JSON.parse((await AsyncStorage.getItem('parental_consent')) || '{}');
+      const childName = String(consent.childName || consent.parentName || 'Child Device');
+      const deviceName = await getDeviceName();
+      const response = await apiClient.pairing.pairDevice(code, childDeviceId, childName || deviceName);
+      const { parentDeviceId: parentId, parentDeviceName: parentName } = response.result.data.json;
 
       await AsyncStorage.setItem('child_monitoring_parent_id', parentId);
       await AsyncStorage.setItem('parent_device_name', parentName);
       await AsyncStorage.setItem('child_monitoring_active', 'true');
+      await AsyncStorage.setItem('child_device_id', childDeviceId);
 
       setParentDeviceId(parentId);
       setIsPaired(true);
@@ -168,7 +169,7 @@ export default function ChildDashboardScreen() {
 
       Alert.alert(
         'Successfully Paired!',
-        'This device is now connected using the 4-digit static parent code.',
+        `This device is now connected to ${parentName}.`,
         [{ text: 'OK' }]
       );
     } catch (error) {
@@ -298,19 +299,11 @@ export default function ChildDashboardScreen() {
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Shield size={28} color="#8b5cf6" />
-                <Text style={styles.sectionTitle}>Static Parent Code</Text>
+                <Text style={styles.sectionTitle}>Connect to Parent</Text>
               </View>
               <Text style={styles.sectionDescription}>
-                Enter this same 4-digit parent code to pair anytime
+                Ask your parent to generate a pairing code, then enter it here. The code expires after five minutes.
               </Text>
-
-              <View style={styles.codeDisplayContainer}>
-                <Text style={styles.codeDisplayLabel}>Parent Pairing Code</Text>
-                <View style={styles.codeDisplay}>
-                  <Text style={styles.codeDisplayText}>{pairingCode}</Text>
-                </View>
-                <Text style={styles.codeExpiry}>♾️ This code does not expire</Text>
-              </View>
             </View>
 
             <View style={styles.divider}>
@@ -325,28 +318,28 @@ export default function ChildDashboardScreen() {
                 <Text style={styles.sectionTitle}>Enter Parent Code</Text>
               </View>
               <Text style={styles.sectionDescription}>
-                Enter the 4-digit code from the parent device
+                Enter the 12-character code from the parent device
               </Text>
 
               <View style={styles.codeInputContainer}>
                 <TextInput
                   style={styles.codeInput}
-                  placeholder="0000"
+                  placeholder="XXXXXXXXXXXX"
                   placeholderTextColor="#6b7280"
                   value={inputCode}
                   onChangeText={(text) => setInputCode(text.toUpperCase())}
                   autoCapitalize="characters"
-                  maxLength={4}
+                  maxLength={12}
                 />
               </View>
 
               <TouchableOpacity
                 style={[
                   styles.primaryButton,
-                (!inputCode || inputCode.length !== 4) && styles.primaryButtonDisabled
+                (!inputCode || inputCode.length !== 12) && styles.primaryButtonDisabled
                 ]}
                 onPress={handleSubmitCode}
-                disabled={!inputCode || inputCode.length !== 4}
+                disabled={!inputCode || inputCode.length !== 12 || connectionStatus === 'connecting'}
               >
                 <Link2 size={20} color="#ffffff" />
                 <Text style={styles.primaryButtonText}>Connect to Parent</Text>

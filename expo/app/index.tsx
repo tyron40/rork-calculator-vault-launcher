@@ -38,7 +38,7 @@ export default function CalculatorDisguise() {
       
       console.log('[Calculator] Setup check - Role:', userRole, 'Parent PIN exists:', !!parentPin, 'Child PIN exists:', !!childPin);
       
-      if (!parentPin && !childPin && !userRole) {
+      if (!parentPin && !childPin) {
         console.log('[Calculator] No PIN setup found, redirecting to role selection');
         setTimeout(() => {
           setIsLoading(false);
@@ -89,7 +89,7 @@ export default function CalculatorDisguise() {
       console.log('[Calculator] Parent PIN exists:', !!parentPin, 'Length:', parentPin?.length);
       console.log('[Calculator] Child PIN exists:', !!childPin, 'Length:', childPin?.length);
       
-      const hasNoSetup = !parentPin && !childPin && !storedRole;
+      const hasNoSetup = !parentPin && !childPin;
       
       if (hasNoSetup) {
         console.log('[Calculator] No setup found, redirecting to role selection');
@@ -175,6 +175,14 @@ export default function CalculatorDisguise() {
                         'user_role',
                         'access_pin',
                         'parental_consent',
+                        'device_id',
+                        'parent_device_id',
+                        'child_device_id',
+                        'connection_config',
+                        'pairing_code',
+                        'child_monitoring_parent_id',
+                        'parent_device_name',
+                        'child_monitoring_active',
                       ]);
                       router.replace('/consent');
                     },
@@ -508,6 +516,14 @@ export default function CalculatorDisguise() {
                             'user_role',
                             'access_pin',
                             'parental_consent',
+                            'device_id',
+                            'parent_device_id',
+                            'child_device_id',
+                            'connection_config',
+                            'pairing_code',
+                            'child_monitoring_parent_id',
+                            'parent_device_name',
+                            'child_monitoring_active',
                           ]);
                           router.replace('/consent');
                         },

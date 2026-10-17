@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shield, Users, ArrowRight, Calculator } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useVaultStore, UserRole } from '@/store/vaultStore';
+import { generateDeviceId, getDeviceName, saveConnectionConfig } from '@/services/connection';
 
 export default function RoleSelectionScreen() {
   const router = useRouter();
@@ -20,8 +21,11 @@ export default function RoleSelectionScreen() {
       const childPin = await AsyncStorage.getItem('child_pin');
       const userRole = await AsyncStorage.getItem('user_role');
       
-      if (!parentPin && !childPin && !userRole) {
+      if (!parentPin && !childPin) {
         setIsSettingUp(true);
+        if (userRole === 'parent' || userRole === 'child') {
+          setSelectedRole(userRole);
+        }
       } else {
         setIsSettingUp(false);
       }
@@ -58,11 +62,17 @@ export default function RoleSelectionScreen() {
       
       await AsyncStorage.setItem('access_pin', pinToUse);
       await AsyncStorage.setItem('user_role', selectedRole);
+      const deviceId = await generateDeviceId();
+      const deviceName = await getDeviceName();
       
       if (selectedRole === 'parent') {
         await AsyncStorage.setItem('parent_pin', pinToUse);
+        await AsyncStorage.setItem('parent_device_id', deviceId);
+        await saveConnectionConfig({ userRole: 'parent', parentPin: pinToUse, childPin: null, deviceId, deviceName });
       } else {
         await AsyncStorage.setItem('child_pin', pinToUse);
+        await AsyncStorage.setItem('child_device_id', deviceId);
+        await saveConnectionConfig({ userRole: 'child', parentPin: null, childPin: pinToUse, deviceId, deviceName });
       }
       
       setStoreUserRole(selectedRole);
