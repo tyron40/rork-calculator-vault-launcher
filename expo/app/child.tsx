@@ -293,8 +293,8 @@ export default function ChildDashboardScreen() {
           </Text>
           <Text style={styles.statusDescription}>
             {isPaired 
-              ? `Monitoring by ${parentDeviceName}`
-              : 'Pair with parent device to enable monitoring'
+              ? `Paired with ${parentDeviceName}`
+              : 'Pair with parent device to share connection status'
             }
           </Text>
         </View>
@@ -368,8 +368,8 @@ export default function ChildDashboardScreen() {
                   <Text style={[styles.pairedValue, { color: '#10b981' }]}>Active</Text>
                 </View>
                 <View style={styles.pairedRow}>
-                  <Text style={styles.pairedLabel}>Monitoring:</Text>
-                  <Text style={[styles.pairedValue, { color: '#f59e0b' }]}>Enabled</Text>
+                  <Text style={styles.pairedLabel}>Live sharing:</Text>
+                  <Text style={[styles.pairedValue, { color: '#9ca3af' }]}>Off</Text>
                 </View>
               </View>
 
@@ -383,14 +383,9 @@ export default function ChildDashboardScreen() {
             </View>
 
             <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>ℹ️ Active Monitoring</Text>
+              <Text style={styles.infoTitle}>ℹ️ About this connection</Text>
               <Text style={styles.infoText}>
-                This device is currently being monitored by the parent device. The following may be monitored:{'\n\n'}
-                • Audio and microphone{'\n'}
-                • Camera and photos{'\n'}
-                • Device activity{'\n'}
-                • Location{'\n\n'}
-                This is done with full consent for parental supervision.
+                Pairing shares this device’s connection status with the parent dashboard. This release does not stream your screen, camera, or microphone and does not give the parent remote control. Any future sharing session must be started and approved on this device.
               </Text>
             </View>
           </>

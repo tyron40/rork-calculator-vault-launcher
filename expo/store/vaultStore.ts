@@ -10,7 +10,6 @@ export interface ConnectedDevice {
   childName: string;
   lastSeen: string;
   isOnline: boolean;
-  monitoringActive: boolean;
 }
 
 export interface MonitoringSettings {
@@ -47,6 +46,7 @@ export interface VaultState {
   removeHiddenApp: (packageName: string) => void;
   updateMonitoringSettings: (settings: Partial<MonitoringSettings>) => void;
   addConnectedDevice: (device: ConnectedDevice) => void;
+  setConnectedDevices: (devices: ConnectedDevice[]) => void;
   removeConnectedDevice: (deviceId: string) => void;
   updateConnectedDevice: (deviceId: string, updates: Partial<ConnectedDevice>) => void;
   setSelectedDevice: (deviceId: string | null) => void;
@@ -150,6 +150,15 @@ export const useVaultStore = create<VaultState>((set) => ({
         connectedDevices: [...state.connectedDevices, device],
       };
     });
+  },
+
+  setConnectedDevices: (devices: ConnectedDevice[]) => {
+    set((state) => ({
+      connectedDevices: devices,
+      selectedDeviceId: devices.some((device) => device.id === state.selectedDeviceId)
+        ? state.selectedDeviceId
+        : null,
+    }));
   },
   
   removeConnectedDevice: (deviceId: string) => {

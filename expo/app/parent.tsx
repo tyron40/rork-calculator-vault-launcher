@@ -6,11 +6,11 @@ import {
   Lock, 
   Smartphone, 
   Plus, 
-  Mic, 
   Activity, 
   BarChart3, 
   Settings as SettingsIcon,
   Radio,
+  Link2,
   QrCode,
   Search,
   Calculator,
@@ -18,8 +18,7 @@ import {
 } from 'lucide-react-native';
 import { useVaultStore, ConnectedDevice } from '@/store/vaultStore';
 import { apiClient } from '@/lib/api-client';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { sendCommandToChild } from '@/services/connection';
+import { useQuery } from '@tanstack/react-query';
 import { generateDeviceId, getDeviceName } from '@/services/connection';
 
 export default function ParentDashboardScreen() {
@@ -33,10 +32,9 @@ export default function ParentDashboardScreen() {
   const { 
     connectedDevices,
     selectedDeviceId,
-    addConnectedDevice,
+    setConnectedDevices,
     removeConnectedDevice,
     setSelectedDevice,
-    updateConnectedDevice,
     setLocked,
     setCurrentPin,
     setUserRole: setStoreUserRole,
@@ -98,20 +96,17 @@ export default function ParentDashboardScreen() {
       const backendDevices = getPairedDevicesQuery.data.devices || [];
       console.log('[ParentDashboard] Received backend devices:', backendDevices.length);
       
-      backendDevices.forEach((backendDevice: any) => {
-        const device: ConnectedDevice = {
+      const devices: ConnectedDevice[] = backendDevices.map((backendDevice: any) => ({
           id: backendDevice.id,
           name: backendDevice.deviceName,
           deviceId: backendDevice.childDeviceId,
           childName: backendDevice.childName,
           lastSeen: backendDevice.lastSeen,
           isOnline: backendDevice.isOnline,
-          monitoringActive: false,
-        };
-        addConnectedDevice(device);
-      });
+        }));
+      setConnectedDevices(devices);
     }
-  }, [getPairedDevicesQuery.data, addConnectedDevice]);
+  }, [getPairedDevicesQuery.data, setConnectedDevices]);
 
   useEffect(() => {
     loadLocalDevices();
@@ -186,7 +181,7 @@ export default function ParentDashboardScreen() {
     setSelectedDevice(device.id);
     Alert.alert(
       device.childName,
-      `Device: ${device.name}\nStatus: ${device.isOnline ? 'Online' : 'Offline'}\nMonitoring: ${device.monitoringActive ? 'Active' : 'Inactive'}`,
+      `Device: ${device.name}\nStatus: ${device.isOnline ? 'Online' : 'Offline'}\nPairing: Active`,
       [
         {
           text: 'Live Monitoring',
@@ -194,10 +189,6 @@ export default function ParentDashboardScreen() {
             setSelectedDevice(device.id);
             router.push('/live-monitoring');
           },
-        },
-        {
-          text: 'Start Monitoring',
-          onPress: () => handleStartMonitoring(device.id),
         },
         {
           text: 'View Dashboard',
@@ -214,35 +205,6 @@ export default function ParentDashboardScreen() {
         },
       ]
     );
-  };
-
-  const handleStartMonitoring = async (deviceId: string) => {
-    try {
-      console.log('[ParentDashboard] Starting monitoring for device:', deviceId);
-      
-      updateConnectedDevice(deviceId, { 
-        monitoringActive: true,
-        lastSeen: new Date().toISOString(),
-      });
-      
-      const command = {
-        id: `cmd_${Date.now()}`,
-        type: 'start_audio' as const,
-        timestamp: new Date().toISOString(),
-        status: 'pending' as const,
-      };
-      
-      const parentId = await AsyncStorage.getItem('parent_device_id') || '';
-      if (!parentId) {
-        throw new Error('Missing parent device ID');
-      }
-      await sendCommandToChild(parentId, deviceId, command);
-      
-      Alert.alert('Monitoring Started', 'Audio monitoring has been enabled on child device');
-    } catch (error) {
-      console.error('[ParentDashboard] Error starting monitoring:', error);
-      Alert.alert('Error', 'Failed to start monitoring');
-    }
   };
 
   const handleRemoveDevice = async (deviceId: string) => {
@@ -354,7 +316,7 @@ export default function ParentDashboardScreen() {
                 <Text style={styles.emptyText}>
                   {searchQuery 
                     ? 'No devices match your search'
-                    : 'Connect a child device to start monitoring'}
+                    : 'Connect a child device to view its pairing and connection status'}
                 </Text>
                 {!searchQuery && (
                   <TouchableOpacity
@@ -393,9 +355,9 @@ export default function ParentDashboardScreen() {
                       <Text style={styles.deviceModel}>{device.name}</Text>
                       <View style={styles.deviceStats}>
                         <View style={styles.statItem}>
-                          <Mic size={16} color={device.monitoringActive ? '#10b981' : '#6b7280'} />
+                          <Link2 size={16} color="#6b7280" />
                           <Text style={styles.statText}>
-                            {device.monitoringActive ? 'Monitoring' : 'Inactive'}
+                            Paired
                           </Text>
                         </View>
                         <View style={styles.statItem}>
@@ -473,12 +435,7 @@ export default function ParentDashboardScreen() {
             <View style={styles.infoCard}>
               <Text style={styles.infoTitle}>ℹ️ About Parent Mode</Text>
               <Text style={styles.infoText}>
-                Parent mode allows you to monitor connected child devices with full consent. Features include:{'\n\n'}
-                • Real-time audio monitoring{'\n'}
-                • Activity logging and tracking{'\n'}
-                • Remote control capabilities{'\n'}
-                • Multi-device management{'\n\n'}
-                All monitoring is legal and consensual.
+                This release supports device pairing and online status. It does not provide remote screen viewing, camera or microphone streaming, or remote control. Those features require a separately built, child-visible session with explicit approval on the device.
               </Text>
             </View>
           </View>
